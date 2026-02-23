@@ -124,18 +124,27 @@ def process_optimization_csv_data(csv_file) -> Dict[str, Any]:
         # Recommendations
         recommendations: List[str] = []
         if high_waste:
-            names = ", ".join([i["name"] for i in sorted(high_waste, key=lambda x: x["waste"], reverse=True)[:5]])
-            recommendations.append(f"Focus on portion control and prep standardization for: {names}")
+            top = sorted(high_waste, key=lambda x: x["waste"], reverse=True)[:3]
+            names = "; ".join([f"{i['name']} ({i['waste']:.1f}%)" for i in top])
+            recommendations.append(
+                f"Waste is elevated on key items — bring each toward <5% with portion control and prep standards: {names}"
+            )
         # Recipe costing opportunities: items with high cost and low qty
         high_cost_low_qty = [i for i in items if i["cost"] >= avg_cost * 1.2 and i["qty"] <= avg_qty * 0.8]
         if high_cost_low_qty:
-            names = ", ".join([i["name"] for i in high_cost_low_qty[:5]])
-            recommendations.append(f"Review recipe costing and sourcing for: {names}")
+            top = sorted(high_cost_low_qty, key=lambda x: (x["cost"], -x["qty"]), reverse=True)[:3]
+            names = "; ".join([f"{i['name']} ($ {i['cost']:.2f} cost, {i['qty']:.0f} units)" for i in top])
+            recommendations.append(
+                f"High cost + low sales items need re-costing or repositioning: {names}"
+            )
         # Description optimization: items with low qty and empty description
         needs_description = [i for i in items if i["qty"] <= avg_qty * 0.8 and not i["description"]]
         if needs_description:
-            names = ", ".join([i["name"] for i in needs_description[:5]])
-            recommendations.append(f"Improve menu descriptions to boost appeal for: {names}")
+            top = sorted(needs_description, key=lambda x: x["qty"])[:3]
+            names = "; ".join([f"{i['name']} ({i['qty']:.0f} units vs avg {avg_qty:.0f})" for i in top])
+            recommendations.append(
+                f"Low-selling items with missing descriptions — add benefit/sensory copy and a signature ingredient: {names}"
+            )
         if not recommendations:
             recommendations.append("Items appear optimized; maintain standards and monitor waste.")
 

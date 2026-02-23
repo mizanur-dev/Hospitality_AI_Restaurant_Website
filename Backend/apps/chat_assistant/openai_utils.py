@@ -1,6 +1,7 @@
 # chat_assistant/openai_utils.py
 import os
 import re
+import hashlib
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -2544,19 +2545,89 @@ def chat_with_gpt(
             return "ack"
         return None
 
+    def _stable_choice(options: list[str], seed: str, *, avoid: str | None = None) -> str:
+        """Pick a deterministic-but-varied response without relying on randomness."""
+        if not options:
+            return ""
+        digest = hashlib.md5((seed or "").encode("utf-8"), usedforsecurity=False).digest()
+        idx = digest[0] % len(options)
+        chosen = options[idx]
+        if avoid and len(options) > 1 and chosen.strip() == str(avoid).strip():
+            chosen = options[(idx + 1) % len(options)]
+        return chosen
+
     # NOTE: This assistant is intentionally general-purpose (ChatGPT-like).
     # We keep `context` only to improve routing into project-specific analysis
     # modules (recipes/hr/beverage/etc.), not to restrict topics.
     allowed_contexts = {"beverage", "hr", "recipes", "menu", "kpi"}
+    prior_messages = _coerce_history_messages(history)
+    last_assistant_message = next(
+        (m.get("content", "") for m in reversed(prior_messages) if m.get("role") == "assistant"),
+        "",
+    )
     stype = small_talk_type(prompt)
     if stype == "greeting":
-        return "Hello! How can I help you today with menu planning, recipe costing, inventory, staffing, or pricing?"
+        text_lower = _normalize_chat_text(prompt)
+        seed = f"greeting|{text_lower}|{len(prior_messages)}"
+
+        # Treat "how are you / what's up" as a distinct greeting so it doesn't feel canned.
+        if re.search(r"\bhow\s+are\s+you\b|\bhow\s+r\s+u\b|\bwhat\s+is\s+up\b|\bwhat\s+s\s+up\b|\bwassup\b|\bhow\s+is\s+it\s+going\b", text_lower):
+            return _stable_choice(
+                [
+                    "I'm doing well—thanks for asking. What would you like to work on today (KPI analysis, staffing, menu, recipes, beverage, or strategy)?",
+                    "Doing great—appreciate it. Tell me what you want to analyze today, or upload a CSV and I'll walk through the results.",
+                    "All good here. What can I help you with—sales/labor/food cost KPIs, scheduling, menu engineering, recipe costing, or beverage pricing?",
+                ],
+                seed,
+                avoid=last_assistant_message,
+            )
+
+        return _stable_choice(
+            [
+                "Hi! What can I help you with today—KPIs, HR/staffing, menu engineering, recipes, beverage insights, or strategy?",
+                "Hello! If you tell me your goal (reduce labor %, improve margins, optimize menu, etc.), I’ll suggest the best next steps.",
+                "Hey there. Ask a question or upload a CSV and I’ll analyze it and summarize the key actions.",
+                "Welcome back. What are we working on today: sales performance, labor, food cost, menu, recipes, beverage, or planning?",
+            ],
+            seed,
+            avoid=last_assistant_message,
+        )
     if stype == "gratitude":
-        return "You're welcome. What would you like to work on next?"
+        text_lower = _normalize_chat_text(prompt)
+        seed = f"gratitude|{text_lower}|{len(prior_messages)}"
+        return _stable_choice(
+            [
+                "You're welcome. What would you like to work on next?",
+                "Happy to help. Want to analyze another area or upload a CSV for deeper insights?",
+                "Anytime. What’s the next question you want to tackle?",
+            ],
+            seed,
+            avoid=last_assistant_message,
+        )
     if stype == "ack":
-        return "Got it. What would you like to analyze or plan next?"
+        text_lower = _normalize_chat_text(prompt)
+        seed = f"ack|{text_lower}|{len(prior_messages)}"
+        return _stable_choice(
+            [
+                "Got it. What would you like to analyze or plan next?",
+                "Understood. What’s the next thing you want to look at?",
+                "Sounds good—what should we do next?",
+            ],
+            seed,
+            avoid=last_assistant_message,
+        )
     if stype == "farewell":
-        return "Goodbye. If you need help with anything restaurant-related later, just message me."
+        text_lower = _normalize_chat_text(prompt)
+        seed = f"farewell|{text_lower}|{len(prior_messages)}"
+        return _stable_choice(
+            [
+                "Goodbye. If you need help with anything restaurant-related later, just message me.",
+                "See you later. When you're back, you can upload a CSV or ask for any analysis.",
+                "Take care. I’m here whenever you want to dig into KPIs, staffing, menu, recipes, or beverage insights.",
+            ],
+            seed,
+            avoid=last_assistant_message,
+        )
 
     # Do not block queries by topic; allow any user question.
     # Context (if provided) is used only for routing/optimization.

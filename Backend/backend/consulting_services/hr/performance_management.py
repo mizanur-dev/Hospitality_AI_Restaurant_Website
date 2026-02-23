@@ -168,6 +168,21 @@ def run(params: dict, file_bytes: bytes | None = None) -> tuple[dict, int]:
             "management_focus": "Critical" if overall_score < 70 else "Important" if overall_score < 80 else "Maintain"
         }
 
+        # Deduplicate recommendations (preserve order)
+        if recommendations:
+            seen = set()
+            deduped = []
+            for rec in recommendations:
+                s = str(rec).strip().rstrip(".,;:")
+                key = s.lower()
+                if not key:
+                    continue
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(s)
+            recommendations = deduped
+
         # Generate business report HTML (compacted to avoid \n in JSON)
         recs_html = ''.join([f'<li>{rec}</li>' for rec in recommendations])
         onboarding_items = [

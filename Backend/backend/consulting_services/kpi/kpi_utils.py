@@ -5,6 +5,7 @@ Handles KPI tracking, analytics, and performance reporting
 
 from typing import Any, Dict, List, Optional
 import os
+import json
 
 import pandas as pd
 from datetime import datetime
@@ -136,6 +137,31 @@ Write naturally and conversationally. No special formatting or markup."""
 def format_business_report(analysis_type, metrics, performance, recommendations, benchmarks=None, additional_data=None):
     current_date = datetime.now().strftime("%B %d, %Y")
 
+    def _dedupe_preserve_order(values):
+        if not isinstance(values, list):
+            return values
+        seen = set()
+        out = []
+        for v in values:
+            try:
+                if isinstance(v, (dict, list, tuple)):
+                    key = json.dumps(v, sort_keys=True, default=str)
+                else:
+                    key = str(v)
+            except Exception:
+                key = str(v)
+            norm = key.strip()
+            norm = norm.rstrip(" \t\n\r")
+            norm = norm.rstrip(".,;:")
+            norm_key = norm.lower()
+            if not norm_key:
+                continue
+            if norm_key in seen:
+                continue
+            seen.add(norm_key)
+            out.append(v if isinstance(v, (dict, list, tuple)) else norm)
+        return out
+
     rating = performance['rating']
     tone = (
         "excellent" if rating == "Excellent"
@@ -180,6 +206,7 @@ def format_business_report(analysis_type, metrics, performance, recommendations,
             else:
                 bench_lines.append(f"{k.replace('_', ' ').title()}: {v}")
 
+    recommendations = _dedupe_preserve_order(recommendations)
     rec_lines = [f"{i}. {r}" for i, r in enumerate(recommendations, 1)]
 
     add_lines = []
@@ -462,28 +489,70 @@ def calculate_labor_cost_analysis(total_sales, labor_cost, hours_worked, target_
     
     # Labor Cost Percentage recommendations
     if labor_percent > target_labor_percent:
-        recommendations.append(f"Reduce labor costs by ${potential_savings:,.2f} to reach {target_labor_percent}% target")
-        recommendations.append("Consider optimizing staff scheduling during slow periods")
+        labor_gap_pts = labor_percent - target_labor_percent
+        est_hours_to_cut = (potential_savings / cost_per_labor_hour) if cost_per_labor_hour > 0 else 0
+        recommendations.append(
+            f"Labor is {labor_percent:.1f}% vs {target_labor_percent:.1f}% target (+{labor_gap_pts:.1f} pts). "
+            f"To hit target on current sales (${total_sales:,.0f}), reduce labor spend by ${potential_savings:,.0f} "
+            f"(~{est_hours_to_cut:.0f} labor-hours at ${cost_per_labor_hour:,.0f}/hr)."
+        )
+        recommendations.append(
+            "Start with schedule-to-sales: trim coverage in low-demand dayparts, align breaks/clock-ins to forecasted volume, "
+            "and protect peak staffing to avoid sales loss."
+        )
     else:
-        recommendations.append("Labor costs are within target range - maintain current efficiency")
+        recommendations.append(
+            f"Labor is {labor_percent:.1f}% at/under the {target_labor_percent:.1f}% target. "
+            "Maintain weekly schedule-to-sales reviews and monitor overtime creep."
+        )
     
     # Overtime Tracking recommendations
     if overtime_percent > 10:
-        recommendations.append(f"Overtime is {overtime_percent:.1f}% of total hours ({actual_overtime_hours:.0f} hrs) - review scheduling to reduce overtime")
-        recommendations.append(f"{overtime_source} overtime premium cost: ${overtime_premium_cost:,.2f}")
+        target_overtime_percent = 5.0
+        target_overtime_hours = hours_worked * (target_overtime_percent / 100)
+        overtime_hours_to_reduce = max(actual_overtime_hours - target_overtime_hours, 0)
+        recommendations.append(
+            f"Overtime is {overtime_percent:.1f}% ({actual_overtime_hours:.0f} hrs). "
+            f"Bring it toward ~{target_overtime_percent:.0f}% by reducing ~{overtime_hours_to_reduce:.0f} overtime hours; "
+            f"estimated premium cost is ${overtime_premium_cost:,.0f} ({overtime_source})."
+        )
+        recommendations.append(
+            "Fix root cause: tighten forecast-based schedules, require shift-extension approvals, and rebalance staffing via cross-training "
+            "before adding extra hours."
+        )
     elif overtime_percent > 5:
-        recommendations.append(f"Overtime at {overtime_percent:.1f}% ({actual_overtime_hours:.0f} hrs) - monitor closely to prevent cost creep")
+        recommendations.append(
+            f"Overtime is {overtime_percent:.1f}% ({actual_overtime_hours:.0f} hrs). "
+            "Set a guardrail (e.g., keep overtime near 5%) and review the top overtime roles/shifts weekly."
+        )
     else:
-        recommendations.append(f"Overtime levels well controlled at {overtime_percent:.1f}% ({actual_overtime_hours:.0f} hrs)")
+        recommendations.append(
+            f"Overtime is controlled at {overtime_percent:.1f}% ({actual_overtime_hours:.0f} hrs). "
+            "Keep the approval workflow and watch for spikes around peak events."
+        )
     
     # Productivity recommendations
     if sales_per_labor_hour < 50:
-        recommendations.append("Sales per labor hour is low - focus on upselling and service efficiency")
-        recommendations.append("Consider cross-training staff to handle multiple roles")
+        splh_gap = 50 - sales_per_labor_hour
+        est_sales_uplift = splh_gap * hours_worked if splh_gap > 0 else 0
+        recommendations.append(
+            f"Sales per labor hour is ${sales_per_labor_hour:.2f} (target ≥ $50). "
+            f"Closing the gap by ${splh_gap:.0f}/labor-hr could add ~${est_sales_uplift:,.0f} in sales at current hours."
+        )
+        recommendations.append(
+            "Prioritize 2–3 high-margin add-ons for suggestive selling, tighten speed-of-service (prep/line bottlenecks), "
+            "and cross-train so you can flex labor without sacrificing guest experience."
+        )
     elif sales_per_labor_hour > 100:
-        recommendations.append("Excellent productivity - consider expanding capacity during peak times")
+        recommendations.append(
+            f"Excellent productivity at ${sales_per_labor_hour:.2f}/labor-hr. "
+            "Ensure peak staffing matches demand and consider extending peak capacity (covers/throughput) without increasing labor %."
+        )
     else:
-        recommendations.append(f"Productivity score: {productivity_score:.0f}% - performing at industry standard")
+        recommendations.append(
+            f"Productivity is ${sales_per_labor_hour:.2f}/labor-hr (around industry standard). "
+            "Next step: push toward $100+ by improving check average and tightening staffing during slow periods."
+        )
 
     # Prepare data for business report
     metrics = {
@@ -652,32 +721,62 @@ def calculate_food_cost_analysis(total_sales, food_cost, target_food_percent=30.
     
     # Food Cost Percentage recommendations
     if food_percent > target_food_percent:
-        recommendations.append(f"Reduce food costs by ${potential_savings:,.2f} to reach {target_food_percent}% target")
-        recommendations.append("Review portion sizes and implement portion control measures")
+        food_gap_pts = food_percent - target_food_percent
+        recommendations.append(
+            f"Food cost is {food_percent:.1f}% vs {target_food_percent:.1f}% target (+{food_gap_pts:.1f} pts). "
+            f"On current sales (${total_sales:,.0f}), that's ~${potential_savings:,.0f} above target — prioritize portion control and recipe adherence."
+        )
+        recommendations.append(
+            "Audit the top-selling recipes for portion drift, refresh recipe cards with current ingredient prices, and re-price or re-engineer low-margin items."
+        )
     else:
-        recommendations.append("Food costs are within target range - maintain current efficiency")
+        recommendations.append(
+            f"Food cost is {food_percent:.1f}% at/under the {target_food_percent:.1f}% target. "
+            "Maintain weekly recipe-cost updates and spot-check portioning on high-volume items."
+        )
     
     # Waste Tracking recommendations
     if actual_waste_percent > 5:
-        recommendations.append(f"{waste_source} food waste: ${actual_waste_cost:,.2f}/month ({actual_waste_percent:.1f}%) - implement waste reduction")
-        recommendations.append(f"Potential savings from waste reduction: ${potential_waste_savings:,.2f}/month")
-        recommendations.append("Conduct daily waste audits and implement FIFO inventory rotation")
+        recommendations.append(
+            f"{waste_source} waste is {actual_waste_percent:.1f}% (~${actual_waste_cost:,.0f}/month). "
+            f"Reducing waste toward target could save about ${potential_waste_savings:,.0f}/month."
+        )
+        recommendations.append(
+            "Run a daily waste log by station, enforce FIFO rotation, and adjust par levels/ordering for the top waste categories."
+        )
     else:
-        recommendations.append(f"{waste_source} food waste at {actual_waste_percent:.1f}% (${actual_waste_cost:,.2f}) - good control, continue monitoring")
+        recommendations.append(
+            f"{waste_source} waste is controlled at {actual_waste_percent:.1f}% (~${actual_waste_cost:,.0f}/month). "
+            "Continue FIFO discipline and monitor spikes after menu changes or events."
+        )
     
     # Menu Costing recommendations
     if menu_cost_variance > 0:
-        recommendations.append(f"Menu cost variance: ${menu_cost_variance:,.2f} above ideal - review recipe costs")
-        recommendations.append("Consider menu engineering to promote high-margin items")
+        recommendations.append(
+            f"Menu cost variance is ${menu_cost_variance:,.0f} above the ideal (28% model). "
+            "Re-cost key recipes, verify yields, and promote high-margin items to shift mix."
+        )
+        recommendations.append(
+            "Use menu engineering: highlight high-margin/high-popularity items, and fix low-margin best-sellers via portion/cost/price adjustments."
+        )
     else:
-        recommendations.append("Menu costing is optimized - maintain current pricing strategy")
+        recommendations.append(
+            "Menu costing is on track versus the ideal model. Maintain pricing discipline and re-cost after supplier price changes."
+        )
     
     if food_percent > 35:
-        recommendations.append("CRITICAL: Food cost significantly above industry standards - immediate action required")
-        recommendations.append("Negotiate better pricing with suppliers or find alternative vendors")
+        recommendations.append(
+            "CRITICAL: Food cost is materially above standard. Start with top-10 ingredients by spend: renegotiate pricing, "
+            "swap equivalent SKUs, and tighten receiving/portion controls immediately."
+        )
     
     if gross_profit_margin < 65:
-        recommendations.append("Focus on increasing gross profit margin through menu pricing optimization")
+        gp_gap_pts = 65 - gross_profit_margin
+        est_gp_uplift = (gp_gap_pts / 100) * total_sales if gp_gap_pts > 0 else 0
+        recommendations.append(
+            f"Gross profit margin is {gross_profit_margin:.1f}% (goal ~65%+). "
+            f"Closing the {gp_gap_pts:.1f}-pt gap adds ~${est_gp_uplift:,.0f} gross profit on current sales — use pricing + cost control together."
+        )
 
     # Prepare data for business report
     metrics = {
@@ -867,13 +966,24 @@ def calculate_prime_cost_analysis(total_sales, labor_cost, food_cost, target_pri
     
     # Prime Cost Percentage recommendations
     if prime_percent > target_prime_percent:
-        recommendations.append(f"Reduce prime costs by ${potential_savings:,.2f} to reach {target_prime_percent}% target")
+        prime_gap_pts = prime_percent - target_prime_percent
+        recommendations.append(
+            f"Prime cost is {prime_percent:.1f}% vs {target_prime_percent:.1f}% target (+{prime_gap_pts:.1f} pts). "
+            f"To hit target on current sales (${total_sales:,.0f}), reduce combined labor+food spend by ${potential_savings:,.0f}."
+        )
         if labor_percent > 30:
-            recommendations.append("Focus on labor cost optimization - consider scheduling improvements")
+            recommendations.append(
+                f"Labor is {labor_percent:.1f}% — tighten schedules and overtime first to move toward the segment benchmark (~{segment_benchmark['labor']}%)."
+            )
         if food_percent > 30:
-            recommendations.append("Focus on food cost control - review portion sizes and waste")
+            recommendations.append(
+                f"Food is {food_percent:.1f}% — focus on portioning, waste, and menu mix to move toward the segment benchmark (~{segment_benchmark['food']}%)."
+            )
     else:
-        recommendations.append("Prime costs are within target range - maintain current efficiency")
+        recommendations.append(
+            f"Prime cost is {prime_percent:.1f}% at/under the {target_prime_percent:.1f}% target. "
+            "Maintain weekly labor scheduling and recipe-cost discipline."
+        )
     
     # Target Benchmarking recommendations
     if vs_segment_target > 5:
@@ -890,10 +1000,12 @@ def calculate_prime_cost_analysis(total_sales, labor_cost, food_cost, target_pri
     
     # Trend Analysis recommendations
     if trend_direction == "Declining":
-        recommendations.append("Cost trend is unfavorable - implement immediate cost control measures")
-        recommendations.append(f"Potential annual savings if target achieved: ${projected_savings_annual:,.2f}")
+        recommendations.append(
+            "Cost trend is unfavorable. Implement a 2-week cost reset: daily labor vs forecast, daily waste log, and recipe-cost refresh on top movers."
+        )
+        recommendations.append(f"Potential annual savings if target achieved (at current run rate): ${projected_savings_annual:,.0f}")
     elif trend_direction == "Improving":
-        recommendations.append("Cost trend is favorable - continue current strategies")
+        recommendations.append("Cost trend is improving — keep the current controls and formalize them into weekly routines.")
     
     if cost_breakdown["labor_portion"] > 60:
         recommendations.append("Labor costs dominate - focus on labor efficiency and scheduling")
@@ -1115,13 +1227,23 @@ def calculate_sales_performance_analysis(total_sales, labor_cost, food_cost, hou
     
     # Sales Per Labor Hour recommendations
     if sales_per_labor_hour < acceptable_sales_per_hour:
-        recommendations.append(f"Sales per labor hour (${sales_per_labor_hour:.2f}) is below target - focus on revenue growth")
-        recommendations.append("Implement upselling training and suggestive selling techniques")
+        splh_gap = acceptable_sales_per_hour - sales_per_labor_hour
+        est_revenue_uplift = splh_gap * hours_worked if splh_gap > 0 else 0
+        recommendations.append(
+            f"Sales per labor hour is ${sales_per_labor_hour:.2f} vs acceptable target ${acceptable_sales_per_hour:.0f} (-${splh_gap:.0f}/hr). "
+            f"At current hours, that's ~${est_revenue_uplift:,.0f} in unrealized sales capacity."
+        )
+        recommendations.append(
+            "Run 2-week upsell + speed-of-service sprint: pre-shift prompts for add-ons, table touch cadence, and line/prep bottleneck fixes."
+        )
     elif sales_per_labor_hour >= excellent_sales_per_hour:
         recommendations.append(f"Excellent SPLH of ${sales_per_labor_hour:.2f} - you're in the top performance tier")
         recommendations.append("Consider expanding capacity during peak hours to capture more revenue")
     else:
-        recommendations.append(f"SPLH of ${sales_per_labor_hour:.2f} is good - target ${excellent_sales_per_hour} for excellence")
+        to_excellent = excellent_sales_per_hour - sales_per_labor_hour
+        recommendations.append(
+            f"SPLH is ${sales_per_labor_hour:.2f} (good). Closing the remaining ${to_excellent:.0f}/hr gap to ${excellent_sales_per_hour:.0f} is the path to excellence."
+        )
     
     # Revenue Trends recommendations
     if revenue_retention_rate < 40:
@@ -1289,16 +1411,36 @@ def calculate_kpi_summary(total_sales, labor_cost, food_cost, hours_worked):
     # Generate recommendations
     recommendations = []
     if labor_percent > 30:
-        recommendations.append("Consider optimizing staff scheduling to reduce labor costs")
+        labor_gap_pts = labor_percent - 30
+        est_over_target = (labor_gap_pts / 100) * total_sales
+        recommendations.append(
+            f"Labor is {labor_percent:.1f}% (benchmark ≤30%, +{labor_gap_pts:.1f} pts). "
+            f"Each 1-pt is about ${total_sales/100:,.0f} at current sales; target savings ~${est_over_target:,.0f} by tightening schedules and overtime."
+        )
     if food_percent > 32:
-        recommendations.append("Review menu pricing and food cost controls")
+        food_gap_pts = food_percent - 32
+        est_over_target = (food_gap_pts / 100) * total_sales
+        recommendations.append(
+            f"Food cost is {food_percent:.1f}% (benchmark ≤32%, +{food_gap_pts:.1f} pts). "
+            f"That's ~${est_over_target:,.0f} above benchmark on current sales; prioritize portion control, waste tracking, and re-costing top items."
+        )
     if prime_percent > 60:
-        recommendations.append("Focus on both labor and food cost optimization")
+        prime_gap_pts = prime_percent - 60
+        est_over_target = (prime_gap_pts / 100) * total_sales
+        recommendations.append(
+            f"Prime cost is {prime_percent:.1f}% (benchmark ≤60%, +{prime_gap_pts:.1f} pts). "
+            f"Closing this gap is worth ~${est_over_target:,.0f} on current sales — run weekly labor and recipe-cost reviews."
+        )
     if sales_per_labor_hour < 50:
-        recommendations.append("Improve staff productivity and sales training")
+        splh_gap = 50 - sales_per_labor_hour
+        est_revenue_uplift = splh_gap * hours_worked if splh_gap > 0 else 0
+        recommendations.append(
+            f"Sales per labor hour is ${sales_per_labor_hour:.2f} (goal $50+). "
+            f"Improving by ${splh_gap:.0f}/hr could add ~${est_revenue_uplift:,.0f} in sales at current hours."
+        )
 
     if not recommendations:
-        recommendations.append("Great job! Your KPIs are within industry standards")
+        recommendations.append("KPIs are within benchmark ranges. Maintain current controls and review these KPIs weekly to catch drift early.")
 
     # Generate business report using the new formatter
     kpi_data = {
@@ -1615,22 +1757,24 @@ def generate_kpi_recommendations(labor_percent, food_percent, prime_percent, sal
     recommendations = []
 
     if labor_percent > 30:
+        labor_gap_pts = labor_percent - 30
         recommendations.append(
             {
                 "category": "Labor Optimization",
                 "priority": "High",
                 "action": "Review staff scheduling and reduce overtime",
-                "impact": f"Could save ${(labor_percent - 30) * 1000:.0f} per $10k in sales",
+                "impact": f"Could save about ${labor_gap_pts * 100:.0f} per $10k in sales (each 1-pt ≈ $100)",
             }
         )
 
     if food_percent > 32:
+        food_gap_pts = food_percent - 32
         recommendations.append(
             {
                 "category": "Food Cost Control",
                 "priority": "High",
                 "action": "Audit portion sizes and supplier pricing",
-                "impact": f"Could save ${(food_percent - 32) * 1000:.0f} per $10k in sales",
+                "impact": f"Could save about ${food_gap_pts * 100:.0f} per $10k in sales (each 1-pt ≈ $100)",
             }
         )
 
@@ -1645,12 +1789,13 @@ def generate_kpi_recommendations(labor_percent, food_percent, prime_percent, sal
         )
 
     if prime_percent > 60:
+        prime_gap_pts = prime_percent - 60
         recommendations.append(
             {
                 "category": "Overall Efficiency",
                 "priority": "Critical",
                 "action": "Focus on both labor and food cost optimization",
-                "impact": "Essential for profitability",
+                "impact": f"Prime cost is +{prime_gap_pts:.1f} pts vs 60% benchmark — prioritize weekly labor + recipe-cost routines",
             }
         )
 
@@ -1729,20 +1874,35 @@ def calculate_liquor_cost_analysis(expected_oz, actual_oz, liquor_cost, total_sa
     recommendations = []
 
     if abs(variance_percent) > 10:
-        recommendations.append("Implement daily liquor inventory tracking to reduce variance")
-        recommendations.append("Train staff on proper pouring techniques and portion control")
+        recommendations.append(
+            f"Liquor usage variance is {variance_percent:.1f}% ({variance_oz:.0f} oz) vs expected. "
+            "Tighten pours to bring variance toward ±5% using jiggers/spouts and shift-by-shift variance review."
+        )
+        recommendations.append(
+            "Implement daily bar inventory (open/close counts) and retrain on standard pours/comp tracking to reduce unexplained variance."
+        )
 
     if liquor_cost_percentage > target_cost_percentage:
-        recommendations.append(f"Review supplier pricing - target cost percentage is {target_cost_percentage}%")
-        recommendations.append("Consider negotiating bulk purchase discounts")
+        target_liquor_cost = total_sales * (target_cost_percentage / 100) if total_sales > 0 else 0
+        over_target_cost = liquor_cost - target_liquor_cost
+        recommendations.append(
+            f"Liquor cost is {liquor_cost_percentage:.1f}% vs {target_cost_percentage:.1f}% target (+{(liquor_cost_percentage - target_cost_percentage):.1f} pts). "
+            f"That's ~${over_target_cost:,.0f} above target on current sales — review pricing, comps, and purchasing."
+        )
+        recommendations.append("Renegotiate top SKUs, standardize pour costs, and validate menu pricing for low-margin drinks.")
 
     if waste_percentage > 5:
-        recommendations.append("Investigate waste sources - implement waste tracking system")
-        recommendations.append("Review storage and handling procedures")
+        recommendations.append(
+            f"Waste is {waste_percentage:.1f}% (~${waste_cost:,.0f}). "
+            "Track waste by reason (spills, comps, expired, over-pours) and fix the top 2 drivers."
+        )
+        recommendations.append("Review storage/handling and tighten open-bottle rotation to reduce spoilage and breakage.")
 
     if variance_percent < -10:
-        recommendations.append("Check for potential theft or unauthorized usage")
-        recommendations.append("Verify inventory counting procedures")
+        recommendations.append(
+            "Variance is materially below expected. Double-check counts and investigate potential reporting issues (voids/comps not logged) or shrink."
+        )
+        recommendations.append("Standardize counting procedure and require manager sign-off on daily variances.")
 
     if not recommendations:
         recommendations.append("Maintain current liquor cost management practices")
@@ -1861,20 +2021,32 @@ def calculate_inventory_analysis(current_stock, reorder_point, monthly_usage, in
     recommendations = []
 
     if current_stock <= reorder_point:
-        recommendations.append("Place immediate reorder to avoid stockout")
-        recommendations.append("Consider increasing safety stock levels")
+        recommendations.append(
+            f"Stock is at/below reorder point ({current_stock:.0f} ≤ {reorder_point:.0f}). "
+            "Place an immediate reorder to prevent stockouts."
+        )
+        recommendations.append("If this is recurring, increase safety stock or confirm lead time assumptions with suppliers.")
 
     if turnover_rate < target_turnover * 0.8:
-        recommendations.append("Review slow-moving inventory and consider promotions")
-        recommendations.append("Optimize reorder quantities to reduce carrying costs")
+        recommendations.append(
+            f"Turnover is low ({turnover_rate:.1f} vs target {target_turnover:.1f}). "
+            "Reduce dead stock: slow-mover promos, tighter par levels, and smaller reorder quantities."
+        )
+        recommendations.append("Focus purchasing on fast movers and consolidate SKUs to reduce holding costs.")
 
     if days_of_stock > 45:
-        recommendations.append("Reduce order quantities to improve cash flow")
-        recommendations.append("Implement just-in-time inventory management")
+        recommendations.append(
+            f"Days of stock is high ({days_of_stock:.0f} days). "
+            "Reduce order quantities to improve cash flow and lower carrying costs."
+        )
+        recommendations.append("Move toward smaller, more frequent reorders for predictable items.")
 
     if abs(optimal_reorder_point - reorder_point) > reorder_point * 0.2:
-        recommendations.append(f"Update reorder point to {optimal_reorder_point:.0f} units")
-        recommendations.append("Review lead time assumptions with suppliers")
+        recommendations.append(
+            f"Reorder point may be mis-set (current {reorder_point:.0f} vs optimal {optimal_reorder_point:.0f}). "
+            "Update reorder point and revalidate lead times."
+        )
+        recommendations.append("Re-check usage rates and supplier delivery reliability before locking in new pars.")
 
     if not recommendations:
         recommendations.append("Maintain current inventory management practices")
@@ -2000,20 +2172,30 @@ def calculate_pricing_analysis(drink_price, cost_per_drink, sales_volume, compet
     recommendations = []
 
     if current_margin < target_margin:
-        recommendations.append(f"Consider price increase to ${optimal_price:.2f} to achieve target margin")
-        recommendations.append("Review cost structure and supplier negotiations")
+        recommendations.append(
+            f"Margin is {current_margin:.1f}% vs {target_margin:.1f}% target (-{abs(margin_difference):.1f} pts). "
+            f"A price of ~${optimal_price:.2f} (from ${drink_price:.2f}) would hit the target margin at current costs."
+        )
+        recommendations.append("If you cannot raise price, reduce cost per drink via supplier renegotiation, batch prep, or portion control.")
 
     if price_vs_competitor > 20:
-        recommendations.append("Consider price reduction to remain competitive")
-        recommendations.append("Focus on value proposition and quality differentiation")
+        recommendations.append(
+            f"Price is {price_vs_competitor:.0f}% above competitor. "
+            "Either reprice closer to market or justify the premium with differentiated menu design, service, and presentation."
+        )
 
     if price_vs_competitor < -20:
-        recommendations.append("Opportunity to increase prices while maintaining competitive advantage")
-        recommendations.append("Invest in marketing to justify premium positioning")
+        recommendations.append(
+            f"Price is {abs(price_vs_competitor):.0f}% below competitor. "
+            "You likely have room to raise price in small steps while monitoring volume and guest feedback."
+        )
 
     if elasticity_revenue > current_revenue * 1.1:
-        recommendations.append("Price optimization could increase revenue by 10%+")
-        recommendations.append("Test price changes in small increments")
+        uplift = elasticity_revenue - current_revenue
+        recommendations.append(
+            f"Elasticity model suggests pricing optimization could lift revenue by ~${uplift:,.0f} at current volume assumptions. "
+            "Test small increments and track unit mix weekly."
+        )
 
     if market_position == "premium" and price_vs_competitor < 0:
         recommendations.append("Align pricing with premium market positioning")

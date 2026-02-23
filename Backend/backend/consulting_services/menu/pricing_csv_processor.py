@@ -133,13 +133,36 @@ def process_pricing_csv_data(csv_file) -> Dict[str, Any]:
         # Recommendations
         recommendations: List[str] = []
         if underpriced:
-            top = sorted(underpriced, key=lambda x: x["food_cost_pct"], reverse=True)[:5]
-            names = ", ".join([t["name"] for t in top])
-            recommendations.append(f"Increase price or reduce cost for: {names}")
+            top = sorted(
+                underpriced,
+                key=lambda x: (x["food_cost_pct"] - target_food_cost, x["food_cost_pct"]),
+                reverse=True,
+            )[:3]
+            examples: List[str] = []
+            for t in top:
+                target_price = (t["cost"] / (target_food_cost / 100.0)) if target_food_cost > 0 else t["price"]
+                price_increase = target_price - t["price"]
+                target_cost = t["price"] * (target_food_cost / 100.0)
+                cost_reduction = t["cost"] - target_cost
+                examples.append(
+                    f"{t['name']} (food cost {t['food_cost_pct']:.1f}% vs {target_food_cost:.0f}%; "
+                    f"raise ~${price_increase:.2f} to ~${target_price:.2f} OR cut cost ~${max(cost_reduction, 0):.2f})"
+                )
+            recommendations.append(
+                "Underpriced vs target food cost — fix the biggest gaps first: " + "; ".join(examples)
+            )
         if overpriced:
-            top = sorted(overpriced, key=lambda x: x["competitor_gap"], reverse=True)[:5]
-            names = ", ".join([t["name"] for t in top])
-            recommendations.append(f"Review pricing vs competitors for: {names}")
+            top = sorted(overpriced, key=lambda x: x["competitor_gap"], reverse=True)[:3]
+            examples: List[str] = []
+            for t in top:
+                suggested_price = (t["competitor"] * 1.05) if t.get("competitor", 0) > 0 else t["price"]
+                delta = t["price"] - suggested_price
+                examples.append(
+                    f"{t['name']} ({t['competitor_gap']:+.0f}% vs competitor; consider -${max(delta, 0):.2f} to ~${suggested_price:.2f})"
+                )
+            recommendations.append(
+                "Overpriced vs competitor — bring high outliers closer to market (or clearly justify the premium): " + "; ".join(examples)
+            )
         if not recommendations:
             recommendations.append("Pricing appears aligned with targets. Maintain and monitor.")
 

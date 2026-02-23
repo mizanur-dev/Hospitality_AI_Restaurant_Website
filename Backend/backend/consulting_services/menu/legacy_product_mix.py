@@ -271,10 +271,15 @@ def process_csv_data(csv_file) -> Dict[str, Any]:
             recommendations.append(f"Increase marketing for {len(puzzles)} Puzzle items ({puzzle_names}) - they have high profitability but need better promotion.")
         
         if len(plowhorses) > 0:
-            recommendations.append(f"Optimize costs for {len(plowhorses)} Plowhorse items - they're popular but need better profit margins.")
+            plowhorse_names = ", ".join([item["name"] for item in plowhorses[:3]])
+            recommendations.append(
+                f"Plowhorses: {len(plowhorses)} items (high popularity, lower margin). Improve contribution margin via portion/cost/price adjustments (e.g., {plowhorse_names})."
+            )
         
         if not recommendations:
-            recommendations.append("Your menu shows balanced performance. Continue monitoring sales trends and adjust pricing as needed.")
+            recommendations.append(
+                f"Menu mix looks balanced (Stars {star_percent:.0f}%, Dogs {dog_percent:.0f}%). Maintain pricing discipline and review quadrant shifts monthly."
+            )
         
         # Industry benchmarks
         benchmarks = {
@@ -451,23 +456,29 @@ def generate_pmix_report(items):
     # Recommendations
     recommendations = []
     if len(stars) > 0:
+        star_names = ", ".join([item.get("name") for item in stars[:3] if item.get("name")])
         recommendations.append(
-            f"Promote your {len(stars)} Star items — they are high profit and popular."
+            f"Stars: {len(stars)} items (≈{star_percent:.0f}% of menu). Feature and highlight top Stars (e.g., {star_names}) to protect profit and volume."
         )
     if len(plowhorses) > 0:
+        plow_names = ", ".join([item.get("name") for item in plowhorses[:3] if item.get("name")])
         recommendations.append(
-            f"Reduce food cost for {len(plowhorses)} Plowhorse items to improve margin while maintaining sales."
+            f"Plowhorses: {len(plowhorses)} items. Improve margin without hurting sales by tightening portion specs and re-costing ingredients (e.g., {plow_names})."
         )
     if len(puzzles) > 0:
+        puzzle_names = ", ".join([item.get("name") for item in puzzles[:3] if item.get("name")])
         recommendations.append(
-            f"Increase awareness and positioning for {len(puzzles)} Puzzle items to lift sales."
+            f"Puzzles: {len(puzzles)} items. Boost visibility for high-margin, low-popularity items with placement/callouts (e.g., {puzzle_names})."
         )
     if len(dogs) > 0:
+        dog_names = ", ".join([item.get("name") for item in dogs[:3] if item.get("name")])
         recommendations.append(
-            f"Minimize, reposition, or remove {len(dogs)} Dog items due to low profit and sales."
+            f"Dogs: {len(dogs)} items (≈{dog_percent:.0f}% of menu). Minimize/rework/remove the weakest items first (e.g., {dog_names})."
         )
     if not recommendations:
-        recommendations.append("Menu performance looks balanced. Maintain pricing and monitor trends.")
+        recommendations.append(
+            f"Menu performance looks balanced (Stars {star_percent:.0f}%, Dogs {dog_percent:.0f}%). Maintain pricing and monitor quadrant shifts weekly."
+        )
 
     # Benchmarks
     benchmarks = {

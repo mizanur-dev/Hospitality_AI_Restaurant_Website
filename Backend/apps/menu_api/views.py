@@ -83,9 +83,13 @@ def _strip_topic_prefix(message: str) -> tuple[str, str]:
 
     if ":" in first_line:
         prefix_raw = first_line.split(":", 1)[0].strip().lower()
-        for pat, tag in PREFIX_MAP.items():
-            if pat in prefix_raw or prefix_raw in pat:
-                return "\n".join(rest).strip(), tag
+        # Only treat the first segment as a topic prefix if it actually looks
+        # like an instruction (e.g., "Analyze my …:"). Avoid misclassifying
+        # valid KV payloads like "Item: …".
+        if prefix_raw.startswith("analyze"):
+            for pat, tag in PREFIX_MAP.items():
+                if pat in prefix_raw:
+                    return "\n".join(rest).strip(), tag
 
     single_match = re.match(
         r"^(analyze\s+my\s+menu\s+analysis|analyze\s+my\s+pricing\s+strategy|analyze\s+my\s+item\s+optimization)\s*[:\-]?\s*(.*)$",
@@ -108,10 +112,15 @@ def _parse_kv_message(message: str) -> tuple[dict, str]:
     body, detected_prefix = _strip_topic_prefix(message)
 
     params: dict = {}
-    for match in re.finditer(
-        r"(?P<key>[A-Za-z_][A-Za-z0-9_ ]*?)\s*:\s*(?P<value>[^,\n]+)",
-        body,
-    ):
+    # Robust KV extraction:
+    # - allows '.' and newlines as separators between pairs
+    # - does NOT treat ',' as a delimiter so numbers like 2,375.00 stay intact
+    # - allows keys like "Food Cost %" and "Contribution Margin %"
+    kv_pattern = re.compile(
+        r"(?:^|[\n;]|\.)\s*(?P<key>[A-Za-z_][A-Za-z0-9_ %]*?)\s*:\s*(?P<value>.*?)\s*(?=(?:[\n;]|\.)\s*[A-Za-z_][A-Za-z0-9_ %]*?\s*:\s*|$)",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for match in kv_pattern.finditer(body):
         key = _snake_key(match.group("key"))
         value = _coerce_scalar(match.group("value"))
         if key:
@@ -175,24 +184,79 @@ def _rec_item(text: str) -> str:
 
 def _generate_menu_analysis_html(params: dict) -> str:
     item_name = str(params.get("item") or params.get("item_name") or "Menu Item")
-    qty_sold = float(params.get("quantity_sold") or params.get("qty_sold") or 0)
-    price = float(params.get("price") or params.get("item_price") or params.get("selling_price") or 0)
-    cost = float(params.get("cost") or params.get("item_cost") or 0)
-    revenue = float(params.get("revenue") or (price * qty_sold) or 0)
-    profit = float(params.get("profit") or (revenue - cost * qty_sold) if qty_sold else 0)
     category = str(params.get("category") or "Uncategorized")
 
+    def _num(*keys: str) -> float | None:
+        for k in keys:
+            if k in params and params.get(k) not in (None, ""):
+                try:
+                    return float(params.get(k))
+                except Exception:
+                    return None
+        return None
+
+    qty_sold = _num("quantity_sold", "qty_sold")
+    price = _num("price", "item_price", "selling_price")
+    cost = _num("cost", "item_cost")
+    revenue = _num("revenue", "total_revenue")
+    profit = _num("profit", "total_profit")
+    food_cost_pct = _num("food_cost", "food_cost_percent", "food_cost_pct")
+    contribution_margin = _num("contribution_margin", "cm", "margin")
+    contribution_margin_pct = _num(
+        "contribution_margin_percent",
+        "contribution_margin_pct",
+        "cm_percent",
+        "margin_percent",
+    )
+
+    # Fill missing fields from what we have (do not override explicit inputs)
+    if qty_sold and qty_sold > 0:
+        if price is None and revenue is not None:
+            price = revenue / qty_sold
+        if revenue is None and price is not None:
+            revenue = price * qty_sold
+        if cost is None and revenue is not None and profit is not None:
+            cost = (revenue - profit) / qty_sold
+        if profit is None and revenue is not None and cost is not None:
+            profit = revenue - cost * qty_sold
+
+    if price is not None and price > 0:
+        if cost is None and food_cost_pct is not None:
+            cost = price * (food_cost_pct / 100)
+        if food_cost_pct is None and cost is not None:
+            food_cost_pct = (cost / price) * 100
+        if contribution_margin is None and cost is not None:
+            contribution_margin = price - cost
+        if contribution_margin_pct is None and cost is not None:
+            contribution_margin_pct = ((price - cost) / price) * 100
+        if cost is None and contribution_margin is not None:
+            cost = price - contribution_margin
+        if cost is None and contribution_margin_pct is not None:
+            cost = price * (1 - (contribution_margin_pct / 100))
+
+    # Final defaults for rendering
+    qty_sold = float(qty_sold or 0)
+    price = float(price or 0)
+    cost = float(cost or 0)
+    revenue = float(revenue or (price * qty_sold) or 0)
+    profit = float(profit or ((revenue - cost * qty_sold) if qty_sold else 0) or 0)
+    food_cost_pct = float(food_cost_pct or ((cost / price * 100) if price > 0 else 0) or 0)
+    contribution_margin = float(contribution_margin or ((price - cost) if price > 0 else 0) or 0)
+    contribution_margin_pct = float(
+        contribution_margin_pct
+        or ((contribution_margin / price * 100) if price > 0 else 0)
+        or 0
+    )
+
     # Compute derived metrics
-    food_cost_pct = (cost / price * 100) if price > 0 else float(params.get("food_cost") or params.get("food_cost_percent") or 0)
-    contribution_margin = price - cost if price > 0 and cost > 0 else float(params.get("contribution_margin") or 0)
-    contribution_margin_pct = (contribution_margin / price * 100) if price > 0 else float(params.get("contribution_margin_percent") or 0)
+    # (already computed above)
 
     # Menu Engineering Matrix quadrant (single item → relative to theoretical averages)
     # With only one item, we assess vs industry benchmarks:
     # Food cost: ideally ≤28% = star territory, ≤35% = plowhorse, >35% = dog
     # High qty + good margin = star; high qty + poor margin = plowhorse
     # Low qty + good margin = puzzle; low qty + poor margin = dog
-    if food_cost_pct > 0 and qty_sold > 0:
+    if food_cost_pct > 0 and qty_sold > 0 and price > 0:
         good_margin = food_cost_pct <= 32
         high_volume = qty_sold >= 50  # relative heuristic
         if good_margin and high_volume:
@@ -204,10 +268,12 @@ def _generate_menu_analysis_html(params: dict) -> str:
         else:
             quadrant, q_icon, q_action = "🐕 Dog", "dog", "Consider repricing, repositioning, or removing from menu."
     else:
-        quadrant, q_icon, q_action = "🧩 Puzzle", "puzzle", "Insufficient data for full quadrant classification."
+        quadrant, q_icon, q_action = "—", "unknown", "Insufficient data for full quadrant classification."
 
     # Performance rating
-    if food_cost_pct <= 28:
+    if price <= 0 or qty_sold <= 0:
+        rating = "Needs Review"
+    elif food_cost_pct <= 28:
         rating = "Excellent"
     elif food_cost_pct <= 32:
         rating = "Good"

@@ -40,6 +40,25 @@ def _ensure_html(value) -> str:
     return f'<div><pre style="white-space:pre-wrap">{html.escape(text)}</pre></div>'
 
 
+def _dedupe_preserve_order(values: list) -> list:
+    """Remove duplicate entries while preserving order (case-insensitive, trims punctuation)."""
+    if not isinstance(values, list):
+        return values
+    seen = set()
+    out = []
+    for v in values:
+        s = str(v).strip()
+        s = s.rstrip(".,;:")
+        key = s.lower()
+        if not key:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(s)
+    return out
+
+
 #  param parsing 
 
 def _coerce(value: str):
@@ -134,6 +153,9 @@ def _parse_swot_sections(text: str) -> dict:
         if m:
             sections["threats"].extend([i.strip() for i in re.split(r",\s*", m.group(2)) if i.strip()])
             continue
+
+    for k in ("strengths", "weaknesses", "opportunities", "threats"):
+        sections[k] = _dedupe_preserve_order(sections.get(k, []))
     return sections
 
 
@@ -143,15 +165,17 @@ def _generate_swot_html(message: str) -> str:
 
     recs = []
     for s in sw.get("strengths", []):
-        recs.append(f"Leverage strength: {s}  build promotions or programs that amplify this advantage.")
+        recs.append(f"Leverage strength: {s} — build one offer, message, or program that amplifies this advantage.")
     for w in sw.get("weaknesses", []):
-        recs.append(f"Address weakness: {w}  prioritise quick wins via process changes or staffing optimisation.")
+        recs.append(f"Address weakness: {w} — prioritize a 30-day quick win via process, training, or scheduling changes.")
     for o in sw.get("opportunities", []):
-        recs.append(f"Pursue opportunity: {o}  run a pilot within 30-90 days to validate demand.")
+        recs.append(f"Pursue opportunity: {o} — run a 30–90 day pilot and define success metrics (traffic, conversion, margin).")
     for t in sw.get("threats", []):
-        recs.append(f"Mitigate threat: {t}  implement monitoring and contingency plans.")
+        recs.append(f"Mitigate threat: {t} — set a monitoring trigger (weekly/monthly) and a specific contingency action.")
     if not recs:
-        recs.append("No recommendations generated  please provide at least one SWOT item.")
+        recs.append("No recommendations generated — please provide at least one SWOT item.")
+
+    recs = _dedupe_preserve_order(recs)
 
     try:
         from backend.consulting_services.kpi.kpi_utils import format_business_report
@@ -253,6 +277,17 @@ def _generate_business_goals_html(params: dict) -> str:
     projected_net = revenue_target - total_spend
     roi_achieved = (projected_net / total_spend * 100) if total_spend > 0 else 0.0
 
+    # What would it take to hit the target ROI?
+    # ROI = (rev - spend)/spend  => rev_required = spend * (1 + target_roi)
+    roi_multiplier = 1.0 + (target_roi / 100.0)
+    revenue_required = (total_spend * roi_multiplier) if total_spend > 0 else 0.0
+    additional_revenue_needed = max(0.0, revenue_required - revenue_target)
+    max_spend_for_target = (revenue_target / roi_multiplier) if roi_multiplier > 0 else 0.0
+    spend_reduction_needed = max(0.0, total_spend - max_spend_for_target)
+
+    monthly_revenue_target = (revenue_target / timeline_months) if timeline_months > 0 else 0.0
+    monthly_spend = (total_spend / timeline_months) if timeline_months > 0 else 0.0
+
     performance = {
         "rating": "Good" if roi_achieved >= target_roi else "Needs Improvement",
         "color": "green" if roi_achieved >= target_roi else "orange",
@@ -267,6 +302,9 @@ def _generate_business_goals_html(params: dict) -> str:
         "Projected Net": projected_net,
         "ROI Achieved": roi_achieved,
     }
+    if timeline_months > 0:
+        metrics["Monthly Revenue Target"] = monthly_revenue_target
+        metrics["Monthly Spend"] = monthly_spend
     if acquisition_cost:
         metrics["Acquisition Cost"] = acquisition_cost
     if conversion_rate:
@@ -274,13 +312,29 @@ def _generate_business_goals_html(params: dict) -> str:
 
     recommendations = []
     if roi_achieved < target_roi:
-        recommendations.append("Increase revenue target or reduce total spend to hit ROI goal.")
+        if additional_revenue_needed > 0:
+            recommendations.append(
+                f"To reach the target ROI ({target_roi:.1f}%), you need approximately ${additional_revenue_needed:,.0f} more revenue at the current spend level."
+            )
+        if spend_reduction_needed > 0:
+            recommendations.append(
+                f"Alternatively, reduce total spend by about ${spend_reduction_needed:,.0f} (or improve margins) to hit the ROI target at the current revenue target."
+            )
     if marketing_spend > 0 and total_spend > 0 and (marketing_spend / total_spend) > 0.5:
-        recommendations.append("Rebalance spend so marketing is not more than 50% of total budget.")
+        marketing_share = (marketing_spend / total_spend * 100) if total_spend > 0 else 0.0
+        recommendations.append(
+            f"Marketing is {marketing_share:.0f}% of total spend. Rebalance toward operations/product to avoid over-reliance on paid acquisition."
+        )
     if revenue_target < total_spend:
-        recommendations.append("Revenue target is below total spend; revisit pricing or volume assumptions.")
+        recommendations.append(
+            "Revenue target is below total spend. Revisit pricing, volume assumptions, and unit economics before committing budget."
+        )
     if not recommendations:
-        recommendations.append("Goals look balanced. Track monthly progress and adjust budgets quarterly.")
+        recommendations.append(
+            "Goals look balanced. Track actuals monthly (revenue, spend, margin) and adjust the plan quarterly based on ROI and leading indicators."
+        )
+
+    recommendations = _dedupe_preserve_order(recommendations)
 
     additional_data = {"Total Spend": total_spend, "Timeline": f"{timeline_months} months"}
 

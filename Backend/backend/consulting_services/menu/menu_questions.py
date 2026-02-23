@@ -698,11 +698,17 @@ def answer_visual_zone_performance(design_analysis: Dict) -> Dict[str, Any]:
             'recommended_zone': 'Upper-Right (Golden Triangle)' if item.get('quadrant') == 'stars' else 'Secondary Position'
         })
 
+    example_star = next((i for i in prime_zone_items if i.get('quadrant') == 'stars' and i.get('name')), None)
+    example_name = example_star.get('name') if example_star else (prime_zone_items[0].get('name') if prime_zone_items else "")
+
     return {
         "question": "Which items are positioned in prime visual zones?",
         "golden_triangle_items": prime_zone_items,
         "insight": f"Top {len(prime_zone_items)} items recommended for prime positioning",
-        "recommendation": "Place Star items in upper-right quadrant where eyes naturally go first."
+        "recommendation": (
+            "Place Star items in the upper-right (Golden Triangle) where eyes naturally go first"
+            + (f" (start with: {example_name})." if example_name else ".")
+        )
     }
 
 
@@ -747,7 +753,9 @@ def answer_callout_effectiveness(unified_data: List[Dict]) -> Dict[str, Any]:
             "📸 Instagram-Worthy": "12-20% for visual items"
         },
         "insight": f"{len(callout_recommendations)} items recommended for callouts",
-        "recommendation": "Use callouts strategically on Stars and Puzzles only - too many reduce effectiveness."
+        "recommendation": (
+            f"Use callouts selectively (about {len(callout_recommendations)} total) on Stars and Puzzles only — too many reduces effectiveness."
+        )
     }
 
 

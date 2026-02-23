@@ -6,6 +6,20 @@ Contains the core business logic for strategic planning analysis.
 from backend.consulting_services.kpi.kpi_utils import format_business_report
 
 
+def _fmt_money(value: float) -> str:
+    try:
+        return f"${float(value):,.2f}"
+    except Exception:
+        return f"${value}"
+
+
+def _fmt_pct(value: float) -> str:
+    try:
+        return f"{float(value):.1f}%"
+    except Exception:
+        return f"{value}%"
+
+
 def calculate_sales_forecasting_analysis(historical_sales, current_sales, growth_rate, seasonal_factor, forecast_periods=12.0, trend_strength=0.5, market_growth=5.0, confidence_level=85.0):
     """Calculate comprehensive sales forecasting analysis with business report."""
     # Calculate key metrics
@@ -53,28 +67,52 @@ def calculate_sales_forecasting_analysis(historical_sales, current_sales, growth
         "growth_status": "Strong" if sales_growth >= market_growth else "Moderate" if sales_growth >= market_growth * 0.8 else "Weak"
     }
 
-    # Generate recommendations
+    # Generate recommendations (make them metric-driven and actionable)
     recommendations = []
 
-    if forecast_accuracy < 80:
-        recommendations.append("Improve data collection and analysis methods")
-        recommendations.append("Implement advanced forecasting techniques")
+    target_accuracy = 85.0
+    target_market_alignment = 80.0
+    target_seasonal_variance = 15.0
 
-    if market_alignment < 70:
-        recommendations.append("Align growth strategy with market trends")
-        recommendations.append("Review competitive positioning")
+    if forecast_accuracy < target_accuracy:
+        recommendations.append(
+            f"Increase forecast accuracy from {_fmt_pct(forecast_accuracy)} toward {_fmt_pct(target_accuracy)} by using at least 12 months of weekly sales, tagging promos/holidays, and re-forecasting monthly."
+        )
+        recommendations.append(
+            "Add a simple back-test: compare last month’s forecast vs actuals, then adjust assumptions (growth rate and seasonality) based on the error you see."
+        )
 
-    if seasonal_adjustment > 20:
-        recommendations.append("Develop seasonal adjustment strategies")
-        recommendations.append("Implement inventory management for seasonal variations")
+    if market_alignment < target_market_alignment:
+        recommendations.append(
+            f"Your growth assumption ({_fmt_pct(growth_rate)}) is not well aligned to market growth ({_fmt_pct(market_growth)}). Revisit the growth rate or document the specific drivers (new capacity, new channels, pricing) that will close the gap."
+        )
+        recommendations.append(
+            "Pressure-test the plan: list the top 2 competitor moves you expect and define a counter-move (offer, positioning, or channel) for each."
+        )
+
+    if seasonal_adjustment > target_seasonal_variance:
+        recommendations.append(
+            f"Seasonality is a meaningful driver (seasonal variance {_fmt_pct(seasonal_adjustment)}). Build a seasonal playbook: staffing plan, ordering levels, and menu/promo adjustments for peak vs slow periods."
+        )
+        recommendations.append(
+            "Set reorder rules tied to forecasted volume (not just last week’s usage) to prevent over-ordering during slow weeks and stockouts during peaks."
+        )
 
     if sales_growth < market_growth * 0.8:
-        recommendations.append("Focus on market penetration strategies")
-        recommendations.append("Review pricing and marketing approaches")
+        recommendations.append(
+            f"Sales growth ({_fmt_pct(sales_growth)}) is lagging the market trend. Prioritize 1-2 penetration tactics (local partnerships, delivery platforms, loyalty reactivation) and track weekly conversion and repeat rate."
+        )
+        recommendations.append(
+            "Run a pricing/offer review: test one small price move or bundle on your top sellers and measure volume and margin impact for 2-4 weeks."
+        )
 
     if trend_strength < 0.6:
-        recommendations.append("Strengthen trend analysis capabilities")
-        recommendations.append("Invest in predictive analytics tools")
+        recommendations.append(
+            f"Trend signal is weak (trend strength {trend_strength:.2f}). Reduce reliance on a single growth rate and use a blended forecast (baseline + seasonal + event-driven adjustments)."
+        )
+        recommendations.append(
+            "Capture a few drivers alongside sales (footfall, reservations, delivery orders, marketing spend) so the forecast is explainable and easier to improve."
+        )
 
     if not recommendations:
         recommendations.append("Maintain current forecasting strategy")
@@ -82,9 +120,9 @@ def calculate_sales_forecasting_analysis(historical_sales, current_sales, growth
 
     # Industry benchmarks
     benchmarks = {
-        "target_accuracy": "≥85%",
-        "market_growth_alignment": "≥80%",
-        "seasonal_variance": "≤15%"
+        "target_accuracy": "85%+ (higher is better; varies by data quality)",
+        "market_growth_alignment": "80%+ (assumptions should match market unless you have clear growth drivers)",
+        "seasonal_variance": "15% or less is easier to plan; higher requires a seasonal playbook",
     }
 
     # Additional insights
@@ -133,8 +171,12 @@ def calculate_growth_strategy_analysis(market_size, market_share, competition_le
 
     # Calculate strategy metrics
     market_penetration_potential = min(100, (market_opportunity / market_size) * 100) if market_size > 0 else 0
-    investment_efficiency = (roi_target / investment_budget * 100) if investment_budget > 0 else 0
-    competitive_threat = max(0, 100 - (competition_level * 10))
+    # A more coherent investment metric: budget relative to the remaining market opportunity.
+    # (The previous formula mixed % ROI with $ budget, which made the value meaningless.)
+    investment_efficiency = (investment_budget / market_opportunity * 100) if market_opportunity > 0 else 0
+    required_incremental_profit = investment_budget * (roi_target / 100) if investment_budget > 0 else 0
+    # competition_level is expected on a 1–10 scale; map to a 0–100 threat score.
+    competitive_threat = max(0, min(100, competition_level * 10))
 
     # Performance assessment
     if growth_score >= 8 and competitive_position >= 80 and market_penetration_potential >= 70:
@@ -171,28 +213,53 @@ def calculate_growth_strategy_analysis(market_size, market_share, competition_le
         "competitive_status": "Strong" if competitive_position >= 80 else "Moderate" if competitive_position >= 70 else "Weak"
     }
 
-    # Generate recommendations
+    # Generate recommendations (tie actions to the computed gaps)
     recommendations = []
 
+    # Translate share points into an intuitive $ value.
+    one_point_share_value = (market_size / 100) if market_size and market_size > 0 else 0
+
     if growth_score < 6:
-        recommendations.append("Develop comprehensive growth strategy")
-        recommendations.append("Identify new market opportunities")
+        recommendations.append(
+            f"Clarify the growth plan: pick one primary lever (new channels, higher check size, more visits) and set a 90-day target with leading indicators (traffic, conversion, repeat)."
+        )
+        recommendations.append(
+            "Quantify your funnel: define the weekly lead sources (walk-in, delivery apps, catering, events) and assign an owner to each for consistent execution."
+        )
 
     if competitive_position < 70:
-        recommendations.append("Strengthen competitive advantages")
-        recommendations.append("Invest in differentiation strategies")
+        recommendations.append(
+            f"Competitive position is moderate/weak ({_fmt_pct(competitive_position)}). Choose 1-2 differentiators (speed, signature items, experience, convenience) and align menu, pricing, and marketing around them."
+        )
+        recommendations.append(
+            "Audit your top 3 competitors: compare price points, ratings, and key selling points; then adjust your offer where you can win profitably."
+        )
 
     if market_penetration_potential < 50:
-        recommendations.append("Focus on market expansion")
-        recommendations.append("Develop new customer segments")
+        if one_point_share_value > 0:
+            recommendations.append(
+                f"Market share is {_fmt_pct(market_share)} with remaining opportunity {_fmt_money(market_opportunity)}. As a reference, each +1 share point is roughly {_fmt_money(one_point_share_value)} in revenue at current market size."
+            )
+        recommendations.append(
+            "Pick 1-2 customer segments to win (office lunch, families, late-night, catering) and build a segment-specific offer + channel plan (ads, partnerships, delivery listings, or events)."
+        )
 
-    if investment_efficiency < 15:
-        recommendations.append("Optimize investment allocation")
-        recommendations.append("Review ROI targets and expectations")
+    if investment_budget > 0:
+        recommendations.append(
+            f"With an investment budget of {_fmt_money(investment_budget)} and ROI target {_fmt_pct(roi_target)}, you need about {_fmt_money(required_incremental_profit)} incremental profit to hit the target. Define the exact initiatives that will generate it."
+        )
+    if investment_efficiency < 1:
+        recommendations.append(
+            f"Investment intensity is low relative to the opportunity ({_fmt_pct(investment_efficiency)} of the remaining market). If growth expectations are high, either increase budget or narrow focus to the highest-ROI segment/channel."
+        )
 
     if competitive_threat > 70:
-        recommendations.append("Monitor competitive landscape closely")
-        recommendations.append("Develop defensive strategies")
+        recommendations.append(
+            "Competitive pressure is high. Set a monthly cadence to review competitor pricing/promos and protect your top sellers with clear value messaging and consistent execution."
+        )
+        recommendations.append(
+            "Build a defensive plan: lock in 3 core items (quality + speed + availability) and create a simple retention tactic (loyalty offer, SMS reactivation, or subscription)."
+        )
 
     if not recommendations:
         recommendations.append("Maintain current growth strategy")
@@ -200,9 +267,9 @@ def calculate_growth_strategy_analysis(market_size, market_share, competition_le
 
     # Industry benchmarks
     benchmarks = {
-        "target_growth_score": "≥8.0",
-        "competitive_threshold": "≥80%",
-        "market_penetration_goal": "≥70%"
+        "target_growth_score": "8.0+ (strong growth readiness)",
+        "competitive_threshold": "80%+ (clear differentiation)",
+        "market_penetration_goal": "50–70% (depends on category maturity and competition)",
     }
 
     # Additional insights
@@ -291,32 +358,58 @@ def calculate_operational_excellence_analysis(efficiency_score, process_time, qu
         "quality_status": "High" if quality_rating >= 8 else "Medium" if quality_rating >= 6 else "Low"
     }
 
-    # Generate recommendations
+    # Generate recommendations (explicit, operations-focused)
     recommendations = []
 
+    excellence_target = 85.0
+
     if excellence_score < 75:
-        recommendations.append("Implement operational excellence framework")
-        recommendations.append("Develop process improvement initiatives")
+        recommendations.append(
+            f"Excellence score is {excellence_score:.1f} (target ~{excellence_target:.0f}+). Start with a 2-week process audit: map the top 3 bottlenecks and remove one constraint at a time."
+        )
+        recommendations.append(
+            "Create a weekly ops scoreboard (speed of service, waste %, guest satisfaction, rework/comped items) and review it with managers every week."
+        )
 
     if process_efficiency < 70:
-        recommendations.append("Optimize process workflows")
-        recommendations.append("Implement lean manufacturing principles")
+        recommendations.append(
+            f"Process efficiency is below goal ({process_efficiency:.1f}). Standardize the busiest workflows with checklists and station setup (mise en place) to reduce delays."
+        )
+        recommendations.append(
+            "Measure cycle time for 10 peak orders, remove the slowest step, and retest—repeat weekly until stable."
+        )
 
     if cost_efficiency < 65:
-        recommendations.append("Reduce waste and improve cost management")
-        recommendations.append("Implement cost control measures")
+        recommendations.append(
+            f"Cost efficiency suggests avoidable loss. With waste at {_fmt_pct(waste_percentage)}, set a weekly waste reduction target and track the top 5 waste reasons (prep errors, spoilage, returns)."
+        )
+        recommendations.append(
+            "Tighten purchasing controls: set par levels, enforce FIFO, and verify vendor price changes monthly."
+        )
 
     if productivity_index < 70:
-        recommendations.append("Enhance employee training and development")
-        recommendations.append("Implement productivity improvement programs")
+        recommendations.append(
+            f"Productivity index is {_fmt_pct(productivity_index)}. Cross-train for flexible scheduling and reduce handoffs during peak periods."
+        )
+        recommendations.append(
+            "Set clear shift goals (tickets/hour or tasks/hour) and coach to them with short daily pre-shift huddles."
+        )
 
     if quality_index < 80:
-        recommendations.append("Strengthen quality control processes")
-        recommendations.append("Implement quality management systems")
+        recommendations.append(
+            f"Quality index is {_fmt_pct(quality_index)}. Add 2 quality checkpoints (line check + final plate check) during peak hours to reduce rework."
+        )
+        recommendations.append(
+            "Standardize recipes and portioning tools (scales, scoops) to improve consistency and protect margins."
+        )
 
     if customer_index < 85:
-        recommendations.append("Improve customer service processes")
-        recommendations.append("Implement customer feedback systems")
+        recommendations.append(
+            f"Customer satisfaction index is {_fmt_pct(customer_index)}. Fix the top 2 service issues first (speed, accuracy, cleanliness) and verify improvement weekly."
+        )
+        recommendations.append(
+            "Add a lightweight feedback loop: QR survey or receipt link, review comments weekly, and close the loop with 1 visible improvement per month."
+        )
 
     if not recommendations:
         recommendations.append("Maintain current operational excellence standards")
@@ -324,9 +417,9 @@ def calculate_operational_excellence_analysis(efficiency_score, process_time, qu
 
     # Industry benchmarks
     benchmarks = {
-        "excellence_threshold": "≥85%",
-        "process_efficiency_goal": "≥80%",
-        "quality_standard": "≥90%"
+        "excellence_threshold": "~85%+ (healthy operations)",
+        "process_efficiency_goal": "70–85+ (depends on concept and service style)",
+        "quality_standard": "80–90+ (consistent execution)",
     }
 
     # Additional insights

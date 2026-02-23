@@ -65,28 +65,55 @@ def calculate_comprehensive_analysis(total_sales, labor_cost, food_cost, prime_c
     recommendations = []
 
     if prime_cost_percentage > 65:
-        recommendations.append("Optimize prime cost structure to improve profitability")
-        recommendations.append("Review labor and food cost management strategies")
+        prime_gap_pts = max(prime_cost_percentage - 60, 0)
+        est_savings = (prime_gap_pts / 100) * total_sales
+        recommendations.append(
+            f"Prime cost is {prime_cost_percentage:.1f}% (ideal ≤60%). Closing the {prime_gap_pts:.1f}-pt gap is worth ~${est_savings:,.0f} on current sales."
+        )
+        recommendations.append(
+            f"Prioritize the biggest driver: labor {labor_percentage:.1f}% and food {food_percentage:.1f}%. Set weekly targets and review variances by daypart."
+        )
 
     if labor_percentage > 35:
-        recommendations.append("Improve labor efficiency and scheduling")
-        recommendations.append("Consider automation and process optimization")
+        labor_gap_pts = max(labor_percentage - 30, 0)
+        est_savings = (labor_gap_pts / 100) * total_sales
+        recommendations.append(
+            f"Labor is {labor_percentage:.1f}% (goal ~30%). That's +{labor_gap_pts:.1f} pts; ~${est_savings:,.0f} opportunity on current sales via schedule-to-sales and overtime control."
+        )
+        recommendations.append("Use forecast-based schedules, enforce shift-extension approvals, and cross-train to flex coverage without adding hours.")
 
     if food_percentage > 35:
-        recommendations.append("Optimize food cost through better purchasing and portion control")
-        recommendations.append("Review menu pricing and ingredient costs")
+        food_gap_pts = max(food_percentage - 30, 0)
+        est_savings = (food_gap_pts / 100) * total_sales
+        recommendations.append(
+            f"Food is {food_percentage:.1f}% (goal ~30%). That's +{food_gap_pts:.1f} pts; ~${est_savings:,.0f} opportunity on current sales via portion control, waste reduction, and recipe-cost refresh."
+        )
+        recommendations.append("Re-cost top-selling items to current ingredient prices and adjust pricing/mix to protect margins.")
 
     if sales_per_hour < 100:
-        recommendations.append("Increase sales velocity through better marketing and service")
-        recommendations.append("Optimize operational efficiency")
+        if hours_worked > 0:
+            sph_gap = 100 - sales_per_hour
+            est_sales_uplift = sph_gap * hours_worked if sph_gap > 0 else 0
+            recommendations.append(
+                f"Sales per hour is ${sales_per_hour:.2f} (target ~$100+). Closing the ${sph_gap:.0f}/hr gap could add ~${est_sales_uplift:,.0f} sales at current hours."
+            )
+        recommendations.append("Focus on speed-of-service and check-average levers (add-ons, bundles, suggestive selling) before adding labor hours.")
 
     if sales_growth < 5:
-        recommendations.append("Develop growth strategies to increase revenue")
-        recommendations.append("Focus on customer acquisition and retention")
+        if previous_sales > 0:
+            target_growth = 10.0
+            target_sales = previous_sales * (1 + target_growth / 100)
+            sales_gap = max(target_sales - total_sales, 0)
+            recommendations.append(
+                f"Sales growth is {sales_growth:.1f}% (target ~{target_growth:.0f}%). You need about ${sales_gap:,.0f} more sales (vs prior period baseline) to reach target."
+            )
+        recommendations.append("Build a short growth plan: retention (repeat offers), acquisition (local ads/partners), and peak-time capacity to capture demand.")
 
     if performance_score < 70:
-        recommendations.append("Implement performance improvement initiatives")
-        recommendations.append("Set specific targets and track progress regularly")
+        recommendations.append(
+            f"Overall score is {performance_score:.1f}/100. Set 2–3 weekly targets (prime %, SPLH, waste) and review results on a fixed cadence to prevent drift."
+        )
+        recommendations.append("Assign owners for labor scheduling, purchasing/recipe costing, and sales training so actions translate into KPI movement.")
 
     if not recommendations:
         recommendations.append("Maintain current performance levels")
@@ -190,28 +217,36 @@ def calculate_performance_optimization(current_performance, target_performance, 
     recommendations = []
 
     if overall_optimization_score < 75:
-        recommendations.append("Implement comprehensive performance optimization strategy")
-        recommendations.append("Focus on efficiency improvements and process optimization")
+        recommendations.append(
+            f"Optimization score is {overall_optimization_score:.0f}% (target 75%+). Prioritize the lowest levers: efficiency {efficiency_rating:.0f}%, tracking {progress_score:.0f}%, and goal progress {goal_achievement_rate:.0f}%."
+        )
+        recommendations.append("Pick 3 operational changes for the next 14 days and measure impact weekly (labor %, food %, SPLH, waste).")
 
     if goal_achievement_rate < 80:
-        recommendations.append("Review and adjust performance goals")
-        recommendations.append("Implement targeted improvement initiatives")
+        recommendations.append(
+            f"You are at {goal_achievement_rate:.0f}% of target. Close the gap of {performance_gap:,.2f} within ~{goal_timeframe:.0f} days using targeted initiatives tied to KPI owners."
+        )
+        recommendations.append("Break the target into weekly milestones and review progress every 7 days.")
 
     if improvement_potential < 10:
-        recommendations.append("Identify new optimization opportunities")
-        recommendations.append("Explore innovative approaches to performance enhancement")
+        recommendations.append(
+            f"Improvement headroom is {improvement_potential:.1f}%. Look for new levers (menu mix, supplier terms, staffing model, throughput constraints) to unlock additional gains."
+        )
 
     if efficiency_rating < 70:
-        recommendations.append("Improve operational efficiency through better processes")
-        recommendations.append("Invest in training and development programs")
+        recommendations.append(
+            f"Efficiency rating is {efficiency_rating:.0f}%. Standardize workflows (prep, line, service steps) and run short training cycles to improve consistency and throughput."
+        )
 
     if progress_tracking < 7:
-        recommendations.append("Implement robust progress tracking systems")
-        recommendations.append("Establish regular performance review cycles")
+        recommendations.append(
+            f"Progress tracking is {progress_tracking:.1f}/10. Set up a weekly KPI dashboard review with owners, actions, and due dates to maintain momentum."
+        )
 
     if performance_gap > current_performance * 0.2:
-        recommendations.append("Develop action plan to close performance gap")
-        recommendations.append("Set intermediate milestones for goal achievement")
+        recommendations.append(
+            f"Performance gap is large relative to current level. Create a milestone plan (every 2 weeks) that closes at least {(performance_gap/goal_timeframe):.2f} units/day on average over the next {goal_timeframe:.0f} days."
+        )
 
     if not recommendations:
         recommendations.append("Maintain current optimization strategies")

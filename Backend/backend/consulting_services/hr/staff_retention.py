@@ -67,21 +67,39 @@ def run(params: dict, file_bytes: bytes | None = None) -> tuple[dict, int]:
         replacement_cost_per_employee = avg_annual_salary * 1.5
         estimated_annual_turnover_cost = (turnover_rate / 100) * 25 * replacement_cost_per_employee  # Assuming 25 employees
 
+        cost_per_turnover_point = (estimated_annual_turnover_cost / turnover_rate) if turnover_rate > 0 else 0.0
+        gap_to_industry = max(0.0, vs_industry)
+        savings_if_match_industry = gap_to_industry * cost_per_turnover_point
+
         # Generate recommendations
         recommendations = []
         if turnover_rate > industry_average:
-            recommendations.append(f"Reduce turnover rate by {vs_industry:.1f}% to match industry average")
-            recommendations.append("Implement stay interviews to understand exit reasons")
-            recommendations.append("Launch peer recognition and reward programs")
-            recommendations.append("Offer quarterly professional development workshops")
+            recommendations.append(
+                f"Reduce turnover by about {gap_to_industry:.1f} points to reach the industry average ({industry_average:.1f}%). That could save roughly ${savings_if_match_industry:,.0f}/year using the current cost model."
+            )
+            recommendations.append(
+                "Run 10–15 stay interviews this month (focus on high performers) to identify the top 2 controllable drivers (scheduling, manager issues, pay, workload)."
+            )
+            recommendations.append(
+                "Fix the first-90-days experience: tighten onboarding checklist, assign a buddy, and schedule a 2-week and 6-week manager check-in to reduce early exits."
+            )
+            recommendations.append(
+                "Add a simple recognition loop (weekly shout-outs + small rewards) tied to reliability and guest experience to improve engagement."
+            )
         else:
             recommendations.append("Maintain current retention strategies - performance is above industry average")
             recommendations.append("Continue investing in employee development programs")
 
         if turnover_rate > 50:
-            recommendations.append("Conduct exit interviews to identify systemic issues")
-            recommendations.append("Review compensation and benefits packages")
-            recommendations.append("Improve onboarding and training processes")
+            recommendations.append(
+                "Turnover is elevated. Standardize exit interviews (same questions every time) and review results monthly to spot repeatable, fixable issues."
+            )
+            recommendations.append(
+                "Check scheduling fairness and manager practices: inconsistent hours and poor management are common drivers in restaurants and are often faster to fix than comp changes."
+            )
+            recommendations.append(
+                "If pay is a driver, prioritize targeted adjustments for the hardest-to-fill roles and tie them to performance and attendance expectations."
+            )
 
         # Prepare data for business report
         metrics = {
@@ -111,6 +129,21 @@ def run(params: dict, file_bytes: bytes | None = None) -> tuple[dict, int]:
             "retention_strategy_priority": "High" if turnover_rate > 70 else "Medium" if turnover_rate > 50 else "Low",
             "employee_satisfaction_focus": "Critical" if turnover_rate > industry_average else "Maintain"
         }
+
+        # Deduplicate recommendations (preserve order)
+        if recommendations:
+            seen = set()
+            deduped = []
+            for rec in recommendations:
+                s = str(rec).strip().rstrip(".,;:")
+                key = s.lower()
+                if not key:
+                    continue
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(s)
+            recommendations = deduped
 
         # Generate business report HTML
         recs_html = ''.join([f'<li>{rec}</li>' for rec in recommendations])

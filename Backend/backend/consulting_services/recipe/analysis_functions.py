@@ -9,6 +9,17 @@ import io
 from typing import Dict, Any, List
 
 
+def _price_for_margin(cost: float, target_margin_pct: float) -> float:
+    """Return the minimum price needed to achieve a target margin given a cost."""
+    try:
+        m = float(target_margin_pct) / 100.0
+        if m >= 1:
+            return 0.0
+        return float(cost) / (1.0 - m)
+    except Exception:
+        return 0.0
+
+
 def calculate_recipe_costing_analysis(ingredient_cost, portion_cost, recipe_price, total_cost, portion_size=1.0, servings=1.0, target_margin=70.0, labor_cost=0.0):
     """Calculate comprehensive recipe costing analysis with business report."""
     # Calculate key metrics
@@ -57,21 +68,35 @@ def calculate_recipe_costing_analysis(ingredient_cost, portion_cost, recipe_pric
     # Generate recommendations
     recommendations = []
 
+    price_needed = _price_for_margin(cost_per_portion, target_margin)
+    price_delta = max(0.0, price_needed - recipe_price) if recipe_price > 0 else 0.0
+    target_cost_at_price = recipe_price * (1.0 - (target_margin / 100.0)) if recipe_price > 0 else 0.0
+    cost_reduction_needed = max(0.0, cost_per_portion - target_cost_at_price) if target_cost_at_price > 0 else 0.0
+
     if profit_margin < target_margin:
-        recommendations.append("Review recipe pricing to achieve target profit margins")
-        recommendations.append("Analyze ingredient costs and portion sizes")
+        if recipe_price > 0 and price_needed > 0:
+            recommendations.append(
+                f"To reach a {target_margin:.0f}% target margin at the current cost (${cost_per_portion:.2f}/portion), price needs to be about ${price_needed:.2f} (increase ≈ ${price_delta:.2f})."
+            )
+        if cost_reduction_needed > 0:
+            recommendations.append(
+                f"If you prefer not to raise price, reduce cost by about ${cost_reduction_needed:.2f} per portion (portioning, prep yield, or ingredient substitutions)."
+            )
 
     if ingredient_cost_percentage > 70:
-        recommendations.append("Negotiate better supplier pricing for ingredients")
-        recommendations.append("Review portion sizes to optimize cost structure")
+        recommendations.append(
+            f"Ingredient cost is {ingredient_cost_percentage:.1f}% of total recipe cost. Negotiate pricing on the top 3 cost drivers and tighten portion controls (scales/scoops)."
+        )
 
     if labor_cost_percentage > 30:
-        recommendations.append("Optimize preparation processes to reduce labor costs")
-        recommendations.append("Consider batch preparation for efficiency")
+        recommendations.append(
+            f"Labor cost is {labor_cost_percentage:.1f}% of total recipe cost. Reduce touches: batch prep where possible and standardize steps to shorten prep time."
+        )
 
     if cost_per_portion > recipe_price * 0.4:
-        recommendations.append("Review recipe formulation for cost optimization")
-        recommendations.append("Consider ingredient substitutions")
+        recommendations.append(
+            "Cost per portion is high relative to price. Review recipe formulation for cost (trim waste, swap high-cost inputs) without changing guest-perceived value."
+        )
 
     if not recommendations:
         recommendations.append("Maintain current recipe costing strategy")
@@ -174,16 +199,19 @@ def calculate_ingredient_optimization_analysis(current_cost, supplier_cost, wast
     recommendations = []
 
     if savings_percentage < 10:
-        recommendations.append("Explore alternative suppliers for better pricing")
-        recommendations.append("Negotiate volume discounts with current suppliers")
+        recommendations.append(
+            f"Supplier savings are {savings_percentage:.1f}% (target 10–15%). Compare quotes and negotiate on the highest-volume items first (current ${current_cost:.2f} vs supplier ${supplier_cost:.2f})."
+        )
 
     if waste_percentage > 10:
-        recommendations.append("Implement better inventory management to reduce waste")
-        recommendations.append("Review storage conditions and shelf life")
+        recommendations.append(
+            f"Waste is {waste_percentage:.1f}% (target ≤5%). Track waste reasons daily and adjust ordering/par levels; verify FIFO and storage temps to reduce spoilage."
+        )
 
     if optimization_score < 7:
-        recommendations.append("Improve quality control processes")
-        recommendations.append("Standardize supplier selection criteria")
+        recommendations.append(
+            f"Quality/consistency score is {optimization_score:.1f}/10. Add receiving checks and a simple supplier scorecard (quality, consistency, on-time, price)."
+        )
 
     if storage_cost > current_cost * 0.1:
         recommendations.append("Optimize storage and inventory management")
@@ -294,20 +322,24 @@ def calculate_recipe_scaling_analysis(current_batch, target_batch, yield_percent
     recommendations = []
 
     if yield_percentage < 85:
-        recommendations.append("Review recipe scaling ratios for better yield")
-        recommendations.append("Optimize preparation techniques for consistency")
+        recommendations.append(
+            f"Yield is {yield_percentage:.0f}% (target 90%+). Identify the main loss point (trim, cook loss, holding) and retest with one controlled change at a time."
+        )
 
     if consistency_score < 7:
-        recommendations.append("Standardize measurement and preparation processes")
-        recommendations.append("Implement quality control checkpoints")
+        recommendations.append(
+            f"Consistency score is {consistency_score:.1f}/10. Standardize measurement tools and add 2 checkpoints during peak production (prep and final seasoning/plating)."
+        )
 
     if scaling_score < 0.7:
-        recommendations.append("Test recipe scaling in smaller increments")
-        recommendations.append("Document scaling adjustments for consistency")
+        recommendations.append(
+            "Scaling performance is below target. Scale in smaller increments first and document any adjustments (cook time, seasoning, hydration) before going full batch."
+        )
 
     if cost_efficiency < 0.7:
-        recommendations.append("Optimize batch sizes for cost efficiency")
-        recommendations.append("Review ingredient ratios for scaling")
+        recommendations.append(
+            "Cost efficiency is low at the target batch size. Re-check the scaled ingredient ratios and consider batch sizing that better matches demand to avoid holding loss and waste."
+        )
 
     if batch_difference > current_batch * 0.5:
         recommendations.append("Consider gradual scaling to maintain quality")
@@ -500,16 +532,34 @@ def process_recipe_csv_data(csv_file) -> dict:
         recommendations = []
         
         if avg_food_cost > 35:
-            recommendations.append("Average food cost is high ({}%). Target: below 30-35%".format(round(avg_food_cost, 1)))
+            recommendations.append(
+                f"Average food cost is high ({avg_food_cost:.1f}%). A practical target is 28–35% depending on concept; prioritize reducing waste and adjusting portioning on the highest-cost recipes."
+            )
         
         if needs_review_count > 0:
-            recommendations.append(f"{needs_review_count} recipe(s) have low profit margins and need pricing review")
+            recommendations.append(
+                f"{needs_review_count} recipe(s) have low margins. For each, decide: raise price, reduce portion/cost, or remove/replace if it can’t hit your margin standard."
+            )
         
         if avg_profit_margin < 60:
-            recommendations.append("Consider menu price adjustments to improve overall profit margins")
+            recommendations.append(
+                f"Average profit margin is {avg_profit_margin:.1f}%. Aim for ~60–70% on core items (concept-dependent) by fixing the worst performers first."
+            )
         
+        target_margin = 65.0
         for recipe in needs_attention:
-            recommendations.append(f"Review '{recipe['recipe_name']}' - only {recipe['profit_margin']}% margin")
+            current_price = float(recipe.get("recipe_price") or 0)
+            cost = float(recipe.get("cost_per_serving") or 0)
+            needed_price = _price_for_margin(cost, target_margin) if cost > 0 else 0.0
+            price_increase = max(0.0, needed_price - current_price) if current_price > 0 else 0.0
+            if current_price > 0 and needed_price > 0 and price_increase > 0.01:
+                recommendations.append(
+                    f"Review '{recipe['recipe_name']}' ({recipe['profit_margin']}% margin): to reach ~{target_margin:.0f}% margin at ${cost:.2f} cost, price would need to be about ${needed_price:.2f} (≈ +${price_increase:.2f})."
+                )
+            else:
+                recommendations.append(
+                    f"Review '{recipe['recipe_name']}' — only {recipe['profit_margin']}% margin. Consider a price change and/or cost reduction."
+                )
         
         if not recommendations:
             recommendations.append("All recipes are performing well within target margins")

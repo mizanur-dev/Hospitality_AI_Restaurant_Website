@@ -148,11 +148,35 @@ def process_design_csv_data(csv_file) -> Dict[str, Any]:
         # Recommendations
         recommendations: List[str] = []
         if quadrant_counts["dogs"] > 0:
-            recommendations.append("Minimize or remove low performing Dog items.")
+            dog_names = (
+                agg[agg["quadrant"] == "dog"]
+                .sort_values(["quantity_sold", "contribution_margin"], ascending=[True, True])
+                .head(3)["item_name"]
+                .tolist()
+            )
+            recommendations.append(
+                f"Dogs: {quadrant_counts['dogs']} items ({dog_pct:.0f}%). Minimize/remove or rework the weakest performers first: {', '.join(dog_names)}"
+            )
         if quadrant_counts["puzzles"] > 0:
-            recommendations.append("Increase awareness and description for Puzzle items.")
+            puzzle_names = (
+                agg[agg["quadrant"] == "puzzle"]
+                .sort_values(["contribution_margin"], ascending=[False])
+                .head(3)["item_name"]
+                .tolist()
+            )
+            recommendations.append(
+                f"Puzzles: {quadrant_counts['puzzles']} items. They have strong margin but low visibility — feature, rename, and add menu callouts for: {', '.join(puzzle_names)}"
+            )
         if quadrant_counts["plowhorses"] > 0:
-            recommendations.append("Optimize cost structure for Plowhorse items.")
+            plow_names = (
+                agg[agg["quadrant"] == "plowhorse"]
+                .sort_values(["quantity_sold"], ascending=[False])
+                .head(3)["item_name"]
+                .tolist()
+            )
+            recommendations.append(
+                f"Plowhorses: {quadrant_counts['plowhorses']} items. Protect popularity but improve margin (portion/cost/price) for: {', '.join(plow_names)}"
+            )
         if not recommendations:
             recommendations.append("Menu appears well structured; maintain visual hierarchy and monitor.")
 

@@ -74,28 +74,46 @@ def run(params: dict, file_bytes: bytes | None = None) -> tuple[dict, int]:
         target_labor_percent = 30.0
         target_labor_cost = (target_labor_percent / 100) * total_sales
         potential_savings = total_labor_cost - target_labor_cost
+        hours_to_cut = (potential_savings / hourly_rate) if hourly_rate > 0 else 0.0
+        sales_needed_for_current_labor = (total_labor_cost / (target_labor_percent / 100)) if target_labor_percent > 0 else 0.0
+        additional_sales_needed = max(0.0, sales_needed_for_current_labor - total_sales)
 
         # Generate recommendations
         recommendations = []
         if labor_percent > target_labor_percent:
-            recommendations.append(f"Reduce labor costs by ${potential_savings:,.2f} to reach {target_labor_percent}% target")
-            recommendations.append("Optimize scheduling during slow periods to reduce off-peak hours")
-            recommendations.append("Implement cross-training to improve flexibility and reduce overtime")
+            recommendations.append(
+                f"Labor is {labor_percent:.1f}% vs the {target_labor_percent:.0f}% target. Reduce labor cost by about ${potential_savings:,.0f} (≈ {hours_to_cut:,.1f} hours at ${hourly_rate:.2f}/hr) or grow sales by about ${additional_sales_needed:,.0f} at the current labor level."
+            )
+            recommendations.append(
+                f"Reduce off-peak hours ({off_peak_hours:.1f} hrs) by tightening open/close checklists and matching staffing to demand in 30-minute blocks."
+            )
+            recommendations.append(
+                "Cross-train so you can flex staffing without overtime: 1–2 key stations per person is usually enough to reduce coverage gaps."
+            )
 
         if peak_efficiency < 30:
-            recommendations.append("Increase staffing during peak hours to improve service quality")
-            recommendations.append("Analyze customer traffic patterns to better align staffing")
+            recommendations.append(
+                f"Peak coverage is low ({peak_efficiency:.1f}% of hours). Shift some off-peak hours into peak windows and validate with ticket times, wait times, and guest feedback."
+            )
+            recommendations.append(
+                "Use a simple traffic map: hourly sales by day-of-week for the last 4–8 weeks, then schedule to that curve (and re-check monthly)."
+            )
         else:
             recommendations.append("Maintain current peak hour staffing levels")
 
         if sales_per_hour < 50:
-            recommendations.append("Focus on increasing sales per hour through upselling and efficiency")
-            recommendations.append("Consider reducing labor hours during consistently slow periods")
+            recommendations.append(
+                f"Sales per labor hour is ${sales_per_hour:.2f}. Improve SPLH by tightening deployment (right people at peaks) and by upselling on the top 3 items with the best margin."
+            )
+            recommendations.append(
+                "If certain hours are consistently slow, cut one coverage slot at a time and track service metrics to avoid harming guest experience."
+            )
         elif sales_per_hour > 100:
             recommendations.append("Excellent sales per hour - consider expanding during peak times")
 
-        recommendations.append("Implement shift bidding system to improve employee satisfaction")
-        recommendations.append("Use predictive scheduling based on historical sales data")
+        if performance != "Excellent" or scheduling_efficiency != "High":
+            recommendations.append("Use predictive scheduling based on historical sales data and update weekly")
+            recommendations.append("Consider a lightweight shift swap/bidding policy to improve coverage and satisfaction")
 
         # Prepare data for business report
         metrics = {
@@ -130,6 +148,21 @@ def run(params: dict, file_bytes: bytes | None = None) -> tuple[dict, int]:
             "scheduling_optimization_priority": "High" if labor_percent > 35 else "Medium" if labor_percent > 30 else "Low",
             "overtime_risk": "High" if peak_hours > labor_hours * 0.5 else "Medium" if peak_hours > labor_hours * 0.3 else "Low"
         }
+
+        # Deduplicate recommendations (preserve order)
+        if recommendations:
+            seen = set()
+            deduped = []
+            for rec in recommendations:
+                s = str(rec).strip().rstrip(".,;:")
+                key = s.lower()
+                if not key:
+                    continue
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(s)
+            recommendations = deduped
 
         # Generate business report HTML (compacted to avoid \n in JSON)
         recs_html = ''.join([f'<li>{rec}</li>' for rec in recommendations])

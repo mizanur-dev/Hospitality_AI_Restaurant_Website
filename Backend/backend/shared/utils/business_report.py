@@ -34,6 +34,21 @@ class BusinessReportFormatter:
         Format a single metric card into professional report sections
         Returns dict with 'text' and 'html' keys
         """
+        # Deduplicate recommendations (preserve order, case-insensitive)
+        if recommendations and isinstance(recommendations, (list, tuple)):
+            seen = set()
+            deduped = []
+            for rec in recommendations:
+                s = str(rec).strip().rstrip(".,;:")
+                key = s.lower()
+                if not key:
+                    continue
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(s)
+            recommendations = deduped
+
         # Plain text version
         text = f"""
 {'='*80}
