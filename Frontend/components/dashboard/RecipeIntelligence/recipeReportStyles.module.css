@@ -91,3 +91,32 @@
 .recipeHtml :global(pre) {
   white-space: pre-wrap;
 }
+
+.recipeHtml :global(.report .report__body) {
+  overflow-x: auto;
+}
+
+.recipeHtml :global(th),
+.recipeHtml :global(td) {
+  padding: 10px 12px;
+}
+
+.recipeHtml :global(th) {
+  text-align: left;
+  font-weight: 700;
+}
+
+.recipeHtml :global(td) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:global(.dark) .recipeHtml :global(.report) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+:global(.dark) .recipeHtml :global(.report .report__body) {
+  color: var(--card-foreground) !important;
+  background: transparent !important;
+}

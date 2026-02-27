@@ -45,35 +45,35 @@ const initialChatHistory: ChatHistoryItem[] = [
     id: 1,
     title: "Beverage Management",
     description: "Hello! I'm here to help you optimize your bar operations. Ask me about liquor costs.",
-    date: "12-1-2025",
+    date: "28-2-26",
     type: "Beverage Management"
   },
   {
     id: 2,
     title: "Staffing Optimization",
     description: "inventory management, pricing strategies, or upload data for analysis.",
-    date: "12-1-2025",
+    date: "28-2-26",
     type: "Staffing Optimization"
   },
   {
     id: 3,
     title: "KPI Analysis",
     description: "Atlantic Salmon",
-    date: "12-1-2025",
+    date: "28-2-26",
     type: "KPI Analysis"
   },
   {
     id: 4,
     title: "KPI Analysis",
     description: "Roma Tomatoes",
-    date: "12-1-2025",
+    date: "28-2-26",
     type: "KPI Analysis"
   },
   {
     id: 5,
     title: "KPI Analysis",
     description: "Extra Virgin Olive Oil",
-    date: "12-1-2025",
+    date: "28-2-26",
     type: "KPI Analysis"
   },
 ]

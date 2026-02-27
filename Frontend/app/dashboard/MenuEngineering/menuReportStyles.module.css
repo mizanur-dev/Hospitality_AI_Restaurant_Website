@@ -91,3 +91,32 @@
 .menuHtml :global(pre) {
   white-space: pre-wrap;
 }
+
+.menuHtml :global(.report .report__body) {
+  overflow-x: auto;
+}
+
+.menuHtml :global(th),
+.menuHtml :global(td) {
+  padding: 10px 12px;
+}
+
+.menuHtml :global(th) {
+  text-align: left;
+  font-weight: 700;
+}
+
+.menuHtml :global(td) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:global(.dark) .menuHtml :global(.report) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+:global(.dark) .menuHtml :global(.report .report__body) {
+  color: var(--card-foreground) !important;
+  background: transparent !important;
+}

@@ -91,3 +91,32 @@
 .beverageHtml :global(pre) {
   white-space: pre-wrap;
 }
+
+.beverageHtml :global(.report .report__body) {
+  overflow-x: auto;
+}
+
+.beverageHtml :global(th),
+.beverageHtml :global(td) {
+  padding: 10px 12px;
+}
+
+.beverageHtml :global(th) {
+  text-align: left;
+  font-weight: 700;
+}
+
+.beverageHtml :global(td) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:global(.dark) .beverageHtml :global(.report) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+:global(.dark) .beverageHtml :global(.report .report__body) {
+  color: var(--card-foreground) !important;
+  background: transparent !important;
+}

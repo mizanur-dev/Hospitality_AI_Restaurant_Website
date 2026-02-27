@@ -200,3 +200,54 @@
   padding: 12px 16px;
   margin: 1rem 0;
 }
+
+.strategicHtml :global(.report .report__body) {
+  overflow-x: auto;
+}
+
+:global(.dark) .strategicHtml :global(.report) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+:global(.dark) .strategicHtml :global(.report .report__body) {
+  color: var(--card-foreground) !important;
+  background: transparent !important;
+}
+
+:global(.dark) .strategicHtml :global(.section-title) {
+  color: var(--foreground) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+:global(.dark) .strategicHtml :global(.metric-card) {
+  background: var(--muted);
+  border-color: var(--border);
+}
+
+:global(.dark) .strategicHtml :global(.metric-label) {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .strategicHtml :global(th) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+:global(.dark) .strategicHtml :global(td) {
+  border-bottom-color: var(--border);
+}
+
+:global(.dark) .strategicHtml :global(tr:hover td) {
+  background: var(--accent);
+}
+
+:global(.dark) .strategicHtml :global(li) {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .strategicHtml :global(h3),
+:global(.dark) .strategicHtml :global(h4) {
+  color: var(--foreground);
+}

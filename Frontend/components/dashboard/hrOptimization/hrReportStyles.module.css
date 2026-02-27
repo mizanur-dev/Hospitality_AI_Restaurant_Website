@@ -76,3 +76,32 @@
   background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
   color: #fff;
 }
+
+.hrHtml :global(.report .report__body) {
+  overflow-x: auto;
+}
+
+.hrHtml :global(th),
+.hrHtml :global(td) {
+  padding: 10px 12px;
+}
+
+.hrHtml :global(th) {
+  text-align: left;
+  font-weight: 700;
+}
+
+.hrHtml :global(td) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:global(.dark) .hrHtml :global(.report) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+:global(.dark) .hrHtml :global(.report .report__body) {
+  color: var(--card-foreground) !important;
+  background: transparent !important;
+}

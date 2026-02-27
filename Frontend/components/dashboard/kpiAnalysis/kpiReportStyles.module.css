@@ -343,3 +343,72 @@
   font-weight: 600;
   color: #1e293b;
 }
+
+.kpiHtml :global(.report .report__body) {
+  overflow-x: auto;
+}
+
+.kpiHtml :global(th),
+.kpiHtml :global(td) {
+  padding: 10px 12px;
+}
+
+.kpiHtml :global(th) {
+  text-align: left;
+  font-weight: 700;
+}
+
+.kpiHtml :global(td) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:global(.dark) .kpiHtml :global(.report) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+:global(.dark) .kpiHtml :global(.report .report__body) {
+  color: var(--card-foreground) !important;
+  background: transparent !important;
+}
+
+:global(.dark) .kpiHtml :global(.kpi-card) {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+}
+
+:global(.dark) .kpiHtml :global(.kpi-label) {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .kpiHtml :global(.report__body h3),
+:global(.dark) .kpiHtml :global(.tracking-section h3) {
+  color: var(--foreground);
+}
+
+:global(.dark) .kpiHtml :global(.report__body li) {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .kpiHtml :global(.tracking-card) {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+:global(.dark) .kpiHtml :global(.tracking-metric) {
+  background: var(--muted);
+  border-color: var(--border);
+}
+
+:global(.dark) .kpiHtml :global(.tracking-label) {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .kpiHtml :global(.tracking-value) {
+  color: var(--foreground);
+}
+
+:global(.dark) .kpiHtml :global(td) {
+  border-bottom-color: var(--border);
+}
