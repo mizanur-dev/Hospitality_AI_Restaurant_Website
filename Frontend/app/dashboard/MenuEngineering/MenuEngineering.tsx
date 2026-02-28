@@ -260,15 +260,22 @@ export default function MenuEngineering() {
                 )}
                 <div
                   className={cn(
-                    "max-w-3xl rounded-2xl px-6 py-4",
+                    "max-w-3xl rounded-2xl",
                     message.type === "user"
-                      ? "bg-gradient-to-br from-[#9810FA] to-[#155DFC] text-white"
-                      : "bg-gray-100 dark:bg-[#1E2939] text-gray-900 dark:text-white"
+                      ? "px-6 py-4 bg-gradient-to-br from-[#9810FA] to-[#155DFC] text-white"
+                      : message.html &&
+                          (message.html.includes('class=\"report') ||
+                            message.html.includes("class='report"))
+                        ? "p-0 bg-transparent"
+                        : "px-6 py-4 bg-gray-100 dark:bg-[#1E2939] text-gray-900 dark:text-white"
                   )}
                 >
                   {message.html ? (
                     <div
-                      className={cn(styles.menuHtml, "whitespace-normal")}
+                      className={cn(
+                        styles.menuHtml,
+                        "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                      )}
                       dangerouslySetInnerHTML={{ __html: message.html }}
                     />
                   ) : (

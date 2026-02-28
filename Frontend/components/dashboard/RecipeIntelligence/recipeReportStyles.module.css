@@ -27,10 +27,17 @@
   overflow: hidden;
 }
 
+.recipeHtml :global(.report__header h2) {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+
 .recipeHtml :global(.report .report__meta) {
+  font-size: 0.9rem;
   opacity: 0.95;
-  font-size: 0.875rem;
-  margin-top: 6px;
+  margin-bottom: 10px;
 }
 
 .recipeHtml :global(.report .report__body) {
@@ -96,6 +103,101 @@
   overflow-x: auto;
 }
 
+.recipeHtml :global(.report__body) {
+  line-height: 1.65;
+}
+
+.recipeHtml :global(.report__body h3) {
+  font-weight: 700;
+  margin: 16px 0 8px;
+}
+
+.recipeHtml :global(.report__body p) {
+  margin: 0 0 10px;
+}
+
+.recipeHtml :global(.report__body ul),
+.recipeHtml :global(.report__body ol) {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.recipeHtml :global(.report__body li) {
+  margin: 6px 0;
+}
+
+/* ── Tracking Section (detail cards from chat responses) ── */
+.recipeHtml :global(.tracking-section) {
+  margin: 1.5rem 0;
+}
+
+.recipeHtml :global(.tracking-section h3) {
+  color: #1e293b;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.recipeHtml :global(.tracking-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.recipeHtml :global(.tracking-card) {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.15);
+  overflow: hidden;
+}
+
+.recipeHtml :global(.tracking-header) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.recipeHtml :global(.tracking-icon) {
+  font-size: 1.2rem;
+}
+
+.recipeHtml :global(.tracking-title) {
+  font-weight: 600;
+  flex: 1;
+}
+
+.recipeHtml :global(.tracking-body) {
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.recipeHtml :global(.tracking-metric) {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.recipeHtml :global(.tracking-label) {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.recipeHtml :global(.tracking-value) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
 .recipeHtml :global(th),
 .recipeHtml :global(td) {
   padding: 10px 12px;
@@ -119,4 +221,49 @@
 :global(.dark) .recipeHtml :global(.report .report__body) {
   color: var(--card-foreground) !important;
   background: transparent !important;
+}
+
+:global(.dark) .recipeHtml :global(.tracking-section h3) {
+  color: var(--foreground) !important;
+}
+
+:global(.dark) .recipeHtml :global(.tracking-card) {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+:global(.dark) .recipeHtml :global(.tracking-metric) {
+  background: var(--muted);
+  border-color: var(--border);
+}
+
+:global(.dark) .recipeHtml :global(.tracking-label) {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .recipeHtml :global(.tracking-value) {
+  color: var(--foreground);
+}
+
+/* Dark-mode hardening for backend inline styles */
+:global(.dark) .recipeHtml :global(.report__body [style*="background:#fff"]),
+:global(.dark) .recipeHtml :global(.report__body [style*="background: #fff"]) {
+  background: var(--card) !important;
+}
+
+:global(.dark) .recipeHtml :global(.report__body [style*="background:#f8fafc"]),
+:global(.dark) .recipeHtml :global(.report__body [style*="background: #f8fafc"]),
+:global(.dark) .recipeHtml :global(.report__body [style*="background:#f9fafb"]),
+:global(.dark) .recipeHtml :global(.report__body [style*="background: #f9fafb"]) {
+  background: var(--muted) !important;
+}
+
+:global(.dark) .recipeHtml :global(.report__body [style*="border:1px solid #e5e7eb"]),
+:global(.dark) .recipeHtml :global(.report__body [style*="border: 1px solid #e5e7eb"]) {
+  border-color: var(--border) !important;
+}
+
+:global(.dark) .recipeHtml :global(.report__body [style*="color:#64748b"]),
+:global(.dark) .recipeHtml :global(.report__body [style*="color: #64748b"]) {
+  color: var(--muted-foreground) !important;
 }

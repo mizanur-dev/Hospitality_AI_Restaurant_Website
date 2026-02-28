@@ -200,32 +200,70 @@ def _format_hr_dashboard_like_html(*, subtask: str, result: dict) -> str:
     report_html = data.get("business_report_html") or data.get("business_report")
     report_html = _ensure_html(str(report_html)) if report_html is not None else ""
 
-    html_parts: list[str] = []
+    prelude_parts: list[str] = []
 
     focus = focus_areas.get(subtask)
     if focus:
-        html_parts.append(f"<strong>🎯 {html.escape(str(focus['title']))} Focus Areas:</strong><br>")
+        prelude_parts.append(
+            f"<h3>🎯 {html.escape(str(focus['title']))} Focus Areas</h3>"
+        )
         items = focus.get("items") or []
-        html_parts.append("<ul>")
-        for item in items:
-            html_parts.append(f"<li>{html.escape(str(item))}</li>")
-        html_parts.append("</ul>")
+        if items:
+            prelude_parts.append("<ul>")
+            for item in items:
+                prelude_parts.append(f"<li>{html.escape(str(item))}</li>")
+            prelude_parts.append("</ul>")
 
     if summary:
-        html_parts.append("<strong>📊 Analysis Summary:</strong><br>")
+        prelude_parts.append("<h3>📊 Analysis Summary</h3>")
+        prelude_parts.append("<ul>")
         for key, value in summary.items():
             label = " ".join(word[:1].upper() + word[1:] for word in str(key).split("_"))
             if isinstance(value, (int, float)):
                 value_str = f"{value:,.2f}" if isinstance(value, float) else f"{value:,}"
             else:
                 value_str = html.escape(str(value))
-            html_parts.append(f"• {html.escape(label)}: {value_str}<br>")
-        html_parts.append("<br>")
+            prelude_parts.append(
+                f"<li><strong>{html.escape(label)}:</strong> {value_str}</li>"
+            )
+        prelude_parts.append("</ul>")
+
+    prelude_body_html = "".join(prelude_parts)
+
+    # Avoid double headers: if we already have a proper .report, merge the prelude
+    # content into the report body instead of rendering a second report card.
+    if report_html and prelude_body_html and (
+        'class="report' in report_html or "class='report" in report_html
+    ):
+        # Skip merging if the report already includes similar sections.
+        if "Focus Areas" not in report_html and "Analysis Summary" not in report_html:
+            body_tag_rx = re.compile(
+                r"(<article\\b[^>]*class=[\"'][^\"']*\\breport__body\\b[^\"']*[\"'][^>]*>)",
+                flags=re.IGNORECASE,
+            )
+            merged, count = body_tag_rx.subn(r"\\1" + prelude_body_html, report_html, count=1)
+            if count:
+                return merged
 
     if report_html:
-        html_parts.append(f"<strong>📋 Business Report:</strong><br>{report_html}")
+        return report_html
 
-    return "".join(html_parts) or _ensure_html(str(result))
+    prelude_html = ""
+    if prelude_body_html:
+        title = focus.get("title") if focus else "HR"
+        prelude_html = (
+            f"<section class=\"report\">"
+            f"<header class=\"report__header\">"
+            f"<h2>{html.escape(str(title))} Overview</h2>"
+            f"<div class=\"report__meta\">Focus Areas & Summary</div>"
+            f"</header>"
+            f"<article class=\"report__body\">{prelude_body_html}</article>"
+            f"</section>"
+        )
+
+    if prelude_html:
+        return prelude_html
+    return _ensure_html(str(result))
 
 
 def _detect_subtask(message: str, params: dict) -> str:
@@ -396,11 +434,21 @@ class HrUploadAPIView(APIView):
             from backend.consulting_services.hr.hr_csv_processor import process_hr_csv_data
 
             required_result = process_hr_csv_data(required_csv, analysis_type="auto")
-            required_html = _format_hr_csv_report_html(required_result)
-            required_wrapped = _format_hr_dashboard_like_html(
-                subtask=str(required_result.get("analysis_type") or "performance_management"),
-                result={"data": {"business_report_html": required_html}, "status": "success"},
-            )
+            if isinstance(required_result, dict) and required_result.get("status") == "error":
+                required_wrapped = _format_hr_csv_report_html(required_result)
+            else:
+                subtask = str((required_result or {}).get("analysis_type") or "performance_management")
+                data = (required_result or {}).get("data") if isinstance((required_result or {}).get("data"), dict) else {}
+                if not data:
+                    # Back-compat: accept top-level business_report_html.
+                    data = {
+                        "business_report_html": (required_result or {}).get("business_report_html")
+                        or (required_result or {}).get("business_report")
+                    }
+                required_wrapped = _format_hr_dashboard_like_html(
+                    subtask=subtask,
+                    result={"data": data, "status": "success"},
+                )
 
             combined_html_parts = [
                 "<div>",
@@ -410,11 +458,20 @@ class HrUploadAPIView(APIView):
 
             if optional_csv is not None:
                 optional_result = process_hr_csv_data(optional_csv, analysis_type="auto")
-                optional_html = _format_hr_csv_report_html(optional_result)
-                optional_wrapped = _format_hr_dashboard_like_html(
-                    subtask=str(optional_result.get("analysis_type") or "performance_management"),
-                    result={"data": {"business_report_html": optional_html}, "status": "success"},
-                )
+                if isinstance(optional_result, dict) and optional_result.get("status") == "error":
+                    optional_wrapped = _format_hr_csv_report_html(optional_result)
+                else:
+                    subtask2 = str((optional_result or {}).get("analysis_type") or "performance_management")
+                    data2 = (optional_result or {}).get("data") if isinstance((optional_result or {}).get("data"), dict) else {}
+                    if not data2:
+                        data2 = {
+                            "business_report_html": (optional_result or {}).get("business_report_html")
+                            or (optional_result or {}).get("business_report")
+                        }
+                    optional_wrapped = _format_hr_dashboard_like_html(
+                        subtask=subtask2,
+                        result={"data": data2, "status": "success"},
+                    )
                 combined_html_parts.extend(
                     [
                         "<hr />",

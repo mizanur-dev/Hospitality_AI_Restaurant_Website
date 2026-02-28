@@ -11,10 +11,16 @@ Design goals:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional
+
+
+_REC_CACHE: dict[str, tuple[float, list[str]]] = {}
+_REC_CACHE_MAX_ITEMS = 128
 
 
 def _extract_json_array(text: str) -> Optional[list]:
@@ -65,6 +71,8 @@ def generate_ai_strategic_recommendations(
     additional_data: Optional[Dict[str, Any]] = None,
     existing_recommendations: Optional[List[str]] = None,
     max_items: int = 6,
+    timeout_s: float | None = None,
+    cache_ttl_s: int = 3600,
 ) -> Optional[List[str]]:
     """Return an AI-generated list of strategic recommendation strings.
 
@@ -81,6 +89,12 @@ def generate_ai_strategic_recommendations(
 
     model = os.getenv("OPENAI_MODEL", "gpt-4o")
 
+    if timeout_s is None:
+        try:
+            timeout_s = float(os.getenv("OPENAI_TIMEOUT_S", "4.0"))
+        except Exception:
+            timeout_s = 4.0
+
     payload = {
         "analysis_type": analysis_type,
         "metrics": metrics or {},
@@ -90,6 +104,26 @@ def generate_ai_strategic_recommendations(
         "existing_recommendations": existing_recommendations or [],
         "max_items": int(max(1, min(max_items, 10))),
     }
+
+    # In-process cache to keep repeated uploads/snaps fast.
+    # Cache key is based on model + the JSON payload (sorted keys).
+    try:
+        cache_key_src = json.dumps(
+            {"model": model, "payload": payload},
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        cache_key = hashlib.sha256(cache_key_src.encode("utf-8")).hexdigest()
+    except Exception:
+        cache_key = ""
+
+    if cache_key and cache_ttl_s > 0:
+        hit = _REC_CACHE.get(cache_key)
+        if hit:
+            ts, recs = hit
+            if (time.time() - ts) <= cache_ttl_s and recs:
+                return recs[: payload["max_items"]]
 
     system = (
         "You are an expert restaurant operator and strategy consultant. "
@@ -109,24 +143,60 @@ def generate_ai_strategic_recommendations(
 
     try:
         client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
+        used_with_options = False
+        if timeout_s is not None:
+            # OpenAI python v1 supports request options via with_options().
+            try:
+                client = client.with_options(timeout=float(timeout_s))
+                used_with_options = True
+            except Exception:
+                pass
+
+        create_kwargs = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0.2,
-            max_tokens=700,
-        )
+            "temperature": 0.2,
+            "max_tokens": 700,
+        }
+        # Fallback for clients that accept timeout directly.
+        if timeout_s is not None and not used_with_options:
+            create_kwargs["timeout"] = float(timeout_s)
+
+        try:
+            resp = client.chat.completions.create(**create_kwargs)
+        except TypeError:
+            # Some client versions don't accept `timeout` kwarg.
+            create_kwargs.pop("timeout", None)
+            resp = client.chat.completions.create(**create_kwargs)
         text = (resp.choices[0].message.content or "").strip()
         arr = _extract_json_array(text)
         if isinstance(arr, list) and all(isinstance(x, str) for x in arr):
             cleaned = [x.strip() for x in arr if x and x.strip()]
-            return cleaned[: payload["max_items"]]
+            result = cleaned[: payload["max_items"]]
+            if cache_key and cache_ttl_s > 0 and result:
+                if len(_REC_CACHE) >= _REC_CACHE_MAX_ITEMS:
+                    # Drop an arbitrary old item to keep memory bounded.
+                    try:
+                        _REC_CACHE.pop(next(iter(_REC_CACHE)))
+                    except Exception:
+                        _REC_CACHE.clear()
+                _REC_CACHE[cache_key] = (time.time(), result)
+            return result
 
         # Fallback: parse bullet text
         cleaned = _normalize_bullets_to_list(text)
-        return cleaned[: payload["max_items"]] if cleaned else None
+        result = cleaned[: payload["max_items"]] if cleaned else None
+        if cache_key and cache_ttl_s > 0 and result:
+            if len(_REC_CACHE) >= _REC_CACHE_MAX_ITEMS:
+                try:
+                    _REC_CACHE.pop(next(iter(_REC_CACHE)))
+                except Exception:
+                    _REC_CACHE.clear()
+            _REC_CACHE[cache_key] = (time.time(), result)
+        return result
     except Exception:
         return None
 

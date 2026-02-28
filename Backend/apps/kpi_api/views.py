@@ -462,9 +462,57 @@ def _delegate_csv_to_domain(domain: str, raw_bytes: bytes) -> "str | None":
         if domain == "beverage":
             from apps.beverage_api.views import _format_beverage_csv_report_html
             from apps.beverage_api.views import _ensure_html as _bev_html
-            from backend.consulting_services.beverage.beverage_pricing_csv_processor import process_beverage_pricing_csv_data
+            from backend.consulting_services.beverage.bar_inventory_csv_processor import (
+                process_bar_inventory_csv_data,
+            )
+            from backend.consulting_services.beverage.beverage_pricing_csv_processor import (
+                process_beverage_pricing_csv_data,
+            )
+            from backend.consulting_services.beverage.liquor_cost_csv_processor import (
+                process_liquor_cost_csv_data,
+            )
 
-            result = process_beverage_pricing_csv_data(fresh())
+            import csv as _csv_bev
+
+            reader_bev = _csv_bev.reader(_io.StringIO(raw_bytes.decode("utf-8", errors="replace")))
+            bcols = {
+                _re.sub(r"[\s_-]+", "", c.strip().lower())
+                for c in (next(reader_bev, []) or [])
+                if c.strip()
+            }
+
+            def bhas(k: str) -> bool:
+                return _re.sub(r"[\s_-]+", "", k.lower()) in bcols
+
+            # Route by column signature.
+            if bhas("expected_oz") or bhas("actual_oz") or bhas("liquor_cost"):
+                result = process_liquor_cost_csv_data(fresh())
+            elif bhas("current_stock") or bhas("reorder_point") or bhas("monthly_usage"):
+                result = process_bar_inventory_csv_data(fresh())
+            elif bhas("drink_price") or bhas("cost_per_drink") or bhas("sales_volume"):
+                result = process_beverage_pricing_csv_data(fresh())
+            else:
+                result = None
+                for fn in [
+                    process_liquor_cost_csv_data,
+                    process_bar_inventory_csv_data,
+                    process_beverage_pricing_csv_data,
+                ]:
+                    attempt = fn(fresh())
+                    if isinstance(attempt, dict) and attempt.get("status") == "success":
+                        result = attempt
+                        break
+                if result is None:
+                    result = {
+                        "status": "error",
+                        "message": "CSV columns did not match any known beverage analysis type.",
+                        "your_columns": sorted(list(bcols)),
+                        "help": (
+                            "Liquor Cost needs: expected_oz, actual_oz, liquor_cost, total_sales. "
+                            "Bar Inventory needs: current_stock, reorder_point, monthly_usage, inventory_value. "
+                            "Beverage Pricing needs: drink_price, cost_per_drink, sales_volume, competitor_price."
+                        ),
+                    }
             body = _format_beverage_csv_report_html(result if isinstance(result, dict) else {})
             return f"<div><h2>Beverage Insights (CSV)</h2>{_bev_html(str(body))}</div>"
 

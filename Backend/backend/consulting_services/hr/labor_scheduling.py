@@ -4,6 +4,7 @@ Analyzes scheduling efficiency and provides optimization strategies with compreh
 """
 
 from backend.shared.ai.strategic_recommendations import generate_ai_strategic_recommendations
+from backend.consulting_services.kpi.kpi_utils import format_business_report
 from backend.shared.utils.common import success_payload, error_payload, require, validate_positive_numbers
 
 
@@ -191,107 +192,90 @@ def run(params: dict, file_bytes: bytes | None = None) -> tuple[dict, int]:
         if ai_recommendations:
             recommendations = ai_recommendations
 
-        # Generate business report HTML (compacted to avoid \n in JSON)
-        recs_html = ''.join([f'<li>{rec}</li>' for rec in recommendations])
-        business_report_html = (
-            f'<section class="report" style="border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.06);">'
-            f'<header class="report__header" style="background:linear-gradient(135deg,#14b8a6,#22c55e);color:#fff;padding:20px;">'
-            f'<h2 style="margin:0 0 6px 0;">Labor Scheduling Analysis</h2>'
-            f'<div class="report__meta" style="opacity:0.9;">Generated: {__import__("datetime").datetime.now().strftime("%B %d, %Y")}</div>'
-            f'<div class="badge badge--{performance.lower().replace(" ", "-")}" style="margin-top:8px;display:inline-block;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:999px;">{performance}</div>'
-            f'</header>'
-            f'<article class="report__body" style="padding:20px;">'
-            f'<p class="lead" style="margin:0 0 14px 0;">Scheduling efficiency is <strong>{scheduling_efficiency.lower()}</strong> with labor at <strong>{labor_percent:.1f}%</strong> of sales.</p>'
-            f'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">'
-            f'<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#f8fafc;">'
-            f'<div style="font-size:0.85rem;color:#64748b;">Labor Percent</div>'
-            f'<div style="font-size:1.6rem;font-weight:700;">{labor_percent:.1f}%</div>'
-            f'</div>'
-            f'<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#f8fafc;">'
-            f'<div style="font-size:0.85rem;color:#64748b;">Sales per Hour</div>'
-            f'<div style="font-size:1.6rem;font-weight:700;">${sales_per_hour:.2f}</div>'
-            f'</div>'
-            f'<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#f8fafc;">'
-            f'<div style="font-size:0.85rem;color:#64748b;">Peak Efficiency</div>'
-            f'<div style="font-size:1.6rem;font-weight:700;">{additional_insights["peak_efficiency_percent"]:.1f}%</div>'
-            f'</div>'
-            f'<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#f8fafc;">'
-            f'<div style="font-size:0.85rem;color:#64748b;">Potential Savings</div>'
-            f'<div style="font-size:1.6rem;font-weight:700;">${additional_insights["potential_savings"]:,.2f}</div>'
-            f'</div>'
-            f'</div>'
-            f'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px;">'
-            f'<section style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff;">'
-            f'<h3 style="margin:0 0 8px 0;">Core Metrics</h3>'
-            f'<ul style="margin:0;padding-left:18px;">'
-            f'<li>Total Sales: ${total_sales:,.2f}</li>'
-            f'<li>Total Labor Cost: ${total_labor_cost:,.2f}</li>'
-            f'<li>Labor Hours: {labor_hours:.1f}</li>'
-            f'<li>Peak Hours: {peak_hours:.1f}</li>'
-            f'</ul>'
-            f'</section>'
-            f'<section style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff;">'
-            f'<h3 style="margin:0 0 8px 0;">Benchmarks</h3>'
-            f'<ul style="margin:0;padding-left:18px;">'
-            f'<li>Excellent Labor %: {benchmarks["excellent_labor_percent"]:.1f}%</li>'
-            f'<li>Good Labor %: {benchmarks["good_labor_percent"]:.1f}%</li>'
-            f'<li>Target Labor %: {benchmarks["target_labor_percent"]:.1f}%</li>'
-            f'<li>Optimal Peak %: {benchmarks["optimal_peak_percent"]:.1f}%</li>'
-            f'</ul>'
-            f'</section>'
-            f'<section style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff;">'
-            f'<h3 style="margin:0 0 8px 0;">Insights</h3>'
-            f'<ul style="margin:0;padding-left:18px;">'
-            f'<li>Scheduling Efficiency: {scheduling_efficiency}</li>'
-            f'<li>Optimization Priority: {additional_insights["scheduling_optimization_priority"]}</li>'
-            f'<li>Overtime Risk: {additional_insights["overtime_risk"]}</li>'
-            f'</ul>'
-            f'</section>'
-            f'</div>'
-            f'<h3 style="margin:16px 0 8px 0;">Strategic Recommendations</h3>'
-            f'<ol style="margin:0;padding-left:18px;">{recs_html}</ol>'
-            f'</article>'
-            f'</section>'
+        # Use the shared report formatter so HR outputs match KPI layout (tracking cards, header, etc.)
+        # Optional inputs (do not require): overtime_hours, covers.
+        overtime_hours_param = params.get("overtime_hours")
+        covers_param = params.get("covers")
+
+        if overtime_hours_param is not None and float(overtime_hours_param) >= 0:
+            actual_overtime_hours = float(overtime_hours_param)
+            overtime_source = "Actual"
+        else:
+            # Estimate overtime similarly to KPI utils (monthly input assumption)
+            actual_overtime_hours = max(0.0, labor_hours - 160.0)
+            overtime_source = "Estimated"
+
+        regular_hours = max(0.0, labor_hours - actual_overtime_hours)
+        overtime_percent = (actual_overtime_hours / labor_hours * 100) if labor_hours > 0 else 0.0
+        overtime_premium_cost = actual_overtime_hours * hourly_rate * 0.5
+
+        if covers_param is not None and float(covers_param) > 0:
+            actual_covers = int(float(covers_param))
+            covers_source = "Actual"
+            avg_check = total_sales / actual_covers if actual_covers > 0 else 25.0
+            covers_per_labor_hour = actual_covers / labor_hours if labor_hours > 0 else 0.0
+        else:
+            avg_check = 25.0
+            actual_covers = int(total_sales / avg_check) if avg_check > 0 else 0
+            covers_source = "Estimated"
+            covers_per_labor_hour = (sales_per_hour / avg_check) if avg_check > 0 else 0.0
+
+        productivity_score = min((sales_per_hour / 50.0 * 100.0) if sales_per_hour > 0 else 0.0, 150.0)
+        labor_efficiency_ratio = total_sales / total_labor_cost if total_labor_cost > 0 else 0.0
+        labor_cost_per_cover = total_labor_cost / actual_covers if actual_covers > 0 else 0.0
+
+        savings_from_target = round(potential_savings, 2) if potential_savings > 0 else 0.0
+        savings_from_overtime = round(overtime_premium_cost, 2) if actual_overtime_hours > 0 else 0.0
+        savings_from_efficiency = round(total_labor_cost * 0.05, 2) if sales_per_hour < 50 else 0.0
+        total_savings_opportunity = savings_from_target + savings_from_overtime + savings_from_efficiency
+
+        formatted = format_business_report(
+            analysis_type="Labor Scheduling Analysis",
+            metrics=metrics,
+            performance=performance_data,
+            recommendations=tuple(recommendations),  # tuple skips formatter's AI rewrite
+            benchmarks=benchmarks,
+            additional_data={
+                "savings_summary": {
+                    "total_savings_opportunity": round(total_savings_opportunity, 2),
+                    "savings_from_cost_reduction": round(savings_from_target, 2),
+                    "savings_from_overtime_reduction": round(savings_from_overtime, 2),
+                    "savings_from_efficiency": round(savings_from_efficiency, 2),
+                    "status": "On Target" if total_savings_opportunity == 0 else "Savings Available",
+                    "data_source": "Calculated",
+                },
+                "overtime_tracking": {
+                    "overtime_hours": round(actual_overtime_hours, 1),
+                    "regular_hours": round(regular_hours, 1),
+                    "overtime_percent": round(overtime_percent, 1),
+                    "overtime_premium_cost": round(overtime_premium_cost, 2),
+                    "data_source": overtime_source,
+                    "status": "Low" if overtime_percent < 5 else "Moderate" if overtime_percent < 10 else "High",
+                },
+                "productivity_metrics": {
+                    "productivity_score": round(productivity_score, 1),
+                    "labor_efficiency_ratio": round(labor_efficiency_ratio, 2),
+                    "covers_per_labor_hour": round(covers_per_labor_hour, 1),
+                    "labor_cost_per_cover": round(labor_cost_per_cover, 2),
+                    "total_covers": actual_covers,
+                    "avg_check": round(avg_check, 2),
+                    "data_source": covers_source,
+                    "rating": "Excellent" if productivity_score > 120 else "Good" if productivity_score > 100 else "Needs Improvement",
+                },
+                "efficiency_metrics": {
+                    "peak_efficiency_percent": round(peak_efficiency, 1),
+                    "off_peak_hours": round(off_peak_hours, 1),
+                    "sales_per_hour": round(sales_per_hour, 2),
+                    "data_source": "Calculated",
+                },
+                "efficiency_rating": "High" if sales_per_hour > 80 else "Medium" if sales_per_hour > 50 else "Low",
+                "scheduling_optimization_priority": additional_insights["scheduling_optimization_priority"],
+                "overtime_risk": additional_insights["overtime_risk"],
+            },
         )
 
-        # Generate text business report
-        business_report = f"""
-RESTAURANT CONSULTING REPORT — LABOR SCHEDULING ANALYSIS
-Generated: {__import__('datetime').datetime.now().strftime('%B %d, %Y')}
-
-PERFORMANCE RATING: {performance.upper()}
-
-This labor scheduling analysis reveals {performance.lower()} scheduling efficiency with {scheduling_efficiency.lower()} peak hour optimization.
-
-KEY PERFORMANCE METRICS
-• Total Sales: ${total_sales:,.2f}
-• Labor Hours: {labor_hours:.1f}
-• Hourly Rate: ${hourly_rate:.2f}
-• Total Labor Cost: ${total_labor_cost:,.2f}
-• Sales per Hour: ${sales_per_hour:.2f}
-• Labor Percent: {labor_percent:.1f}%
-• Peak Hours: {peak_hours:.1f}
-• Off-Peak Hours: {off_peak_hours:.1f}
-
-INDUSTRY BENCHMARKS
-• Excellent Labor %: {benchmarks['excellent_labor_percent']:.1f}%
-• Good Labor %: {benchmarks['good_labor_percent']:.1f}%
-• Acceptable Labor %: {benchmarks['acceptable_labor_percent']:.1f}%
-• Target Labor %: {benchmarks['target_labor_percent']:.1f}%
-• Optimal Peak %: {benchmarks['optimal_peak_percent']:.1f}%
-
-ADDITIONAL INSIGHTS
-• Peak Efficiency: {additional_insights['peak_efficiency_percent']:.1f}%
-• Scheduling Efficiency: {scheduling_efficiency}
-• Potential Savings: ${additional_insights['potential_savings']:,.2f}
-• Optimization Priority: {additional_insights['scheduling_optimization_priority']}
-• Overtime Risk: {additional_insights['overtime_risk']}
-
-STRATEGIC RECOMMENDATIONS
-{chr(10).join([f'{i+1}. {rec}' for i, rec in enumerate(recommendations)])}
-
-END OF REPORT
-        """.strip()
+        business_report_html = formatted.get("business_report_html", "")
+        business_report = formatted.get("business_report", "")
 
         # Prepare response data
         data = {
@@ -305,7 +289,8 @@ END OF REPORT
             "off_peak_hours": off_peak_hours,
             "performance_rating": performance,
             "scheduling_efficiency": scheduling_efficiency,
-            "potential_savings": potential_savings,
+            # Savings are opportunities only when above target; never show negative "savings".
+            "potential_savings": savings_from_target,
             "business_report_html": business_report_html,
             "business_report": business_report
         }

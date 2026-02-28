@@ -345,48 +345,86 @@ class BeverageUploadAPIView(APIView):
             def _any_match(target_set: set[str]) -> bool:
                 return any(_normalise(t) in normalised_cols for t in target_set)
 
+            def _detect_analysis_type() -> str | None:
+                if _any_match(LIQUOR_COLS):
+                    return "liquor_cost_analysis"
+                if _any_match(INVENTORY_COLS):
+                    return "bar_inventory_analysis"
+                if _any_match(PRICING_COLS):
+                    return "beverage_pricing_analysis"
+                return None
+
+            detected_type = _detect_analysis_type()
+
+            processors_by_type = {
+                "liquor_cost_analysis": process_liquor_cost_csv_data,
+                "bar_inventory_analysis": process_bar_inventory_csv_data,
+                "beverage_pricing_analysis": process_beverage_pricing_csv_data,
+            }
+
             result: dict | None = None
 
-            # --- Explicit routing if frontend told us the type ---
-            if analysis_type == "liquor_cost_analysis":
-                result = process_liquor_cost_csv_data(_fresh())
-            elif analysis_type == "bar_inventory_analysis":
-                result = process_bar_inventory_csv_data(_fresh())
-            elif analysis_type == "beverage_pricing_analysis":
-                result = process_beverage_pricing_csv_data(_fresh())
-            else:
-                # --- Smart auto-detect based on column sniffing ---
-                if _any_match(LIQUOR_COLS):
-                    result = process_liquor_cost_csv_data(_fresh())
-                elif _any_match(INVENTORY_COLS):
-                    result = process_bar_inventory_csv_data(_fresh())
-                elif _any_match(PRICING_COLS):
-                    result = process_beverage_pricing_csv_data(_fresh())
-                else:
-                    # Last resort: try all three and return first success
-                    for fn in [
-                        process_liquor_cost_csv_data,
-                        process_bar_inventory_csv_data,
-                        process_beverage_pricing_csv_data,
-                    ]:
-                        attempt = fn(_fresh())
-                        if isinstance(attempt, dict) and attempt.get("status") == "success":
-                            result = attempt
-                            break
+            # Treat analysis_type as a *hint*. If the frontend sends an incorrect
+            # analysis_type (or the user uploads a different CSV than the selected card),
+            # fall back to schema detection rather than failing with a misleading error.
+            attempted: list[str] = []
+            candidate_types: list[str] = []
 
-                    if result is None:
-                        # No processor succeeded — build a helpful combined error.
-                        col_list = sorted(columns) or ["(none detected)"]
-                        result = {
-                            "status": "error",
-                            "message": "CSV columns did not match any known beverage analysis type.",
-                            "your_columns": col_list,
-                            "help": (
-                                "Liquor Cost needs: expected_oz, actual_oz, liquor_cost, total_sales. "
-                                "Bar Inventory needs: current_stock, reorder_point, monthly_usage, inventory_value. "
-                                "Beverage Pricing needs: drink_price, cost_per_drink, sales_volume, competitor_price."
-                            ),
+            if analysis_type in processors_by_type:
+                candidate_types.append(str(analysis_type))
+            if detected_type and detected_type not in candidate_types:
+                candidate_types.append(detected_type)
+
+            # Default fallback order (kept stable for deterministic behavior).
+            for t in ["liquor_cost_analysis", "bar_inventory_analysis", "beverage_pricing_analysis"]:
+                if t not in candidate_types:
+                    candidate_types.append(t)
+
+            first_error: dict | None = None
+            for t in candidate_types:
+                fn = processors_by_type.get(t)
+                if not fn:
+                    continue
+                attempted.append(t)
+                attempt = fn(_fresh())
+                if isinstance(attempt, dict) and attempt.get("status") == "success":
+                    result = attempt
+                    break
+
+                if first_error is None and isinstance(attempt, dict):
+                    first_error = attempt
+
+                # If this looks like a schema mismatch, keep trying other processors.
+                msg = (attempt or {}).get("message") if isinstance(attempt, dict) else ""
+                if isinstance(msg, str) and "Missing required columns" in msg:
+                    continue
+
+            if result is None:
+                if first_error is not None:
+                    # Preserve the most specific error, but add context.
+                    first_error = dict(first_error)
+                    details = first_error.get("details") if isinstance(first_error.get("details"), dict) else {}
+                    details.update(
+                        {
+                            "attempted_analysis_types": attempted,
+                            "detected_analysis_type": detected_type,
                         }
+                    )
+                    first_error["details"] = details
+                    result = first_error
+                else:
+                    # No processor succeeded — build a helpful combined error.
+                    col_list = sorted(columns) or ["(none detected)"]
+                    result = {
+                        "status": "error",
+                        "message": "CSV columns did not match any known beverage analysis type.",
+                        "your_columns": col_list,
+                        "help": (
+                            "Liquor Cost needs: expected_oz, actual_oz, liquor_cost, total_sales. "
+                            "Bar Inventory needs: current_stock, reorder_point, monthly_usage, inventory_value. "
+                            "Beverage Pricing needs: drink_price, cost_per_drink, sales_volume, competitor_price."
+                        ),
+                    }
 
             html_response = _format_beverage_csv_report_html(result or {})
             return Response(

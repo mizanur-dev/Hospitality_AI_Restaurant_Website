@@ -225,13 +225,18 @@ function MessageBubble({ msg }: { msg: Message }) {
           FORBID_TAGS: ["script", "iframe", "object", "embed"],
         })
       : msg.content;
+  const isReportHtml =
+    !msg.isUser &&
+    (safeHtml.includes('class="report') || safeHtml.includes("class='report"));
   return (
     <div className={`flex flex-col ${msg.isUser ? "items-end" : "items-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[85%] rounded-2xl text-sm leading-relaxed ${
           msg.isUser
-            ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
-            : "border border-slate-100 bg-slate-50 text-slate-700 shadow-sm"
+            ? "px-4 py-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
+            : isReportHtml
+              ? "p-0 bg-transparent border-0 shadow-none"
+              : "px-4 py-3 border border-slate-100 bg-slate-50 text-slate-700 shadow-sm"
         } ${!msg.isUser ? styles.kpiHtml : ""}`}
         dangerouslySetInnerHTML={{ __html: safeHtml }}
       />

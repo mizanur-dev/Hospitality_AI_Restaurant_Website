@@ -103,33 +103,18 @@ export default function HROptimization() {
     setError(null)
     setIsLoading(true)
 
-    const userMsgId = Date.now()
-    const aiPlaceholderId = userMsgId + 1
+    const baseId = Date.now()
 
-    setMessages((prev) => [
-      ...prev,
-      { id: userMsgId, type: "user", text: message },
-      { id: aiPlaceholderId, type: "ai", text: "Thinking..." },
-    ])
+    setMessages((prev) => [...prev, { id: baseId, type: "user", text: message }])
     setInputValue("")
 
     try {
       const { html_response } = await sendChatMessage(message)
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiPlaceholderId
-            ? { ...m, text: undefined, html: html_response }
-            : m
-        )
-      )
+      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", html: html_response }])
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong."
       setError(msg)
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiPlaceholderId ? { ...m, text: `Error: ${msg}` } : m
-        )
-      )
+      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", text: `Error: ${msg}` }])
     } finally {
       setIsLoading(false)
     }
@@ -155,20 +140,18 @@ export default function HROptimization() {
     setError(null)
     setIsLoading(true)
 
-    const userMsgId = Date.now()
-    const aiPlaceholderId = userMsgId + 1
+    const baseId = Date.now()
 
     setMessages((prev) => [
       ...prev,
       {
-        id: userMsgId,
+        id: baseId,
         type: "user",
         text:
           files.length === 1
             ? `Uploaded CSV: ${files[0].name}`
             : `Uploaded CSVs: ${files.map((f) => f.name).join(", ")}`,
       },
-      { id: aiPlaceholderId, type: "ai", text: "Analyzing CSV..." },
     ])
 
     try {
@@ -177,21 +160,11 @@ export default function HROptimization() {
       if (files[1]) formData.append("optional_csv", files[1])
 
       const { html_response } = await uploadCsv(formData)
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiPlaceholderId
-            ? { ...m, text: undefined, html: html_response }
-            : m
-        )
-      )
+      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", html: html_response }])
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong."
       setError(msg)
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiPlaceholderId ? { ...m, text: `Error: ${msg}` } : m
-        )
-      )
+      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", text: `Error: ${msg}` }])
     } finally {
       setIsLoading(false)
     }
@@ -305,15 +278,22 @@ export default function HROptimization() {
 
                 <div
                   className={cn(
-                    "max-w-3xl rounded-2xl px-6 py-4",
+                    "max-w-3xl rounded-2xl",
                     message.type === "user"
-                      ? "bg-gradient-to-br from-[#9810FA] to-[#155DFC] text-white"
-                      : "bg-gray-100 dark:bg-[#1E2939] text-gray-900 dark:text-white"
+                      ? "px-6 py-4 bg-gradient-to-br from-[#9810FA] to-[#155DFC] text-white"
+                      : message.html &&
+                          (message.html.includes('class="report"') ||
+                            message.html.includes("class='report'"))
+                        ? "p-0 bg-transparent"
+                        : "px-6 py-4 bg-gray-100 dark:bg-[#1E2939] text-gray-900 dark:text-white"
                   )}
                 >
                   {message.type === "ai" && message.html ? (
                     <div
-                      className={styles.hrHtml}
+                      className={cn(
+                        styles.hrHtml,
+                        "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                      )}
                       dangerouslySetInnerHTML={{
                         __html: sanitizeHrHtml(message.html),
                       }}
@@ -330,6 +310,22 @@ export default function HROptimization() {
                 )}
               </div>
             ))}
+
+            {/* Animated loading dots (match KPI Analysis page) */}
+            {isLoading && (
+              <div className="flex gap-3 justify-start">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+                  <BotIcon stroke="white" className="w-5 h-5" />
+                </div>
+                <div className="max-w-3xl rounded-2xl px-6 py-4 bg-gray-100 dark:bg-[#1E2939]">
+                  <div className="flex gap-1 items-center h-5">
+                    <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Invisible div to scroll to */}
             <div ref={messagesEndRef} />
           </div>
