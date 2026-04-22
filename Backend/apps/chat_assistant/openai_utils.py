@@ -2485,6 +2485,7 @@ def chat_with_gpt(
     history: list[dict] | None = None,
     *,
     max_history_messages: int = 20,
+    language: str = "en",
 ) -> str:
     """Chat with GPT-4 using the OpenAI API, with KPI and Beverage analysis integration."""
     if not prompt or not prompt.strip():
@@ -2701,6 +2702,10 @@ When Analyzing Data:
 - Ask a brief follow-up question if key inputs are missing
 
 Remember: Write naturally like a trusted assistant having a conversation. No special formatting, no technical markup, just clear and helpful guidance."""
+
+    # Add language instruction
+    if language and language.lower() == "es":
+        base_system_message += "\n\nIMPORTANT: You MUST respond entirely in Spanish (Español). All text, explanations, recommendations, and analysis must be written in Spanish."
 
     try:
         client = OpenAI(api_key=api_key)

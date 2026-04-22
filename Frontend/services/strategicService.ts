@@ -35,11 +35,11 @@ async function readJsonSafe(res: Response): Promise<UnknownJson> {
   return { raw: text } as unknown;
 }
 
-export async function sendChatMessage(message: string): Promise<StrategicChatResponse> {
+export async function sendChatMessage(message: string, language: string = "en"): Promise<StrategicChatResponse> {
   const res = await fetch(buildUrl("/api/strategic/chat/"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, language }),
   });
 
   const data = (await readJsonSafe(res)) as StrategicChatResponse & StrategicApiError;
@@ -53,7 +53,8 @@ export async function sendChatMessage(message: string): Promise<StrategicChatRes
   return { html_response: data.html_response };
 }
 
-export async function uploadCsv(formData: FormData): Promise<StrategicChatResponse> {
+export async function uploadCsv(formData: FormData, language: string = "en"): Promise<StrategicChatResponse> {
+  formData.append("language", language);
   const res = await fetch(buildUrl("/api/strategic/upload/"), {
     method: "POST",
     body: formData,

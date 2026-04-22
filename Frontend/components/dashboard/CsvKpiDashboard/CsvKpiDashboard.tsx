@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { sendChatMessage, uploadCsv } from "@/services/kpiService";
 import styles from "@/components/dashboard/kpiAnalysis/kpiReportStyles.module.css";
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton";
 import {
   LineChart,
   Line,
@@ -24,6 +25,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useLanguage } from "@/providers/language-provider";
 import {
   ChartConfig,
   ChartContainer,
@@ -230,16 +232,20 @@ function MessageBubble({ msg }: { msg: Message }) {
     (safeHtml.includes('class="report') || safeHtml.includes("class='report"));
   return (
     <div className={`flex flex-col ${msg.isUser ? "items-end" : "items-start"}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl text-sm leading-relaxed ${
+      <div id={`report-${msg.id}`}
+        className={`relative max-w-[85%] rounded-2xl text-sm leading-relaxed ${
           msg.isUser
             ? "px-4 py-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
             : isReportHtml
               ? "p-0 bg-transparent border-0 shadow-none"
               : "px-4 py-3 border border-slate-100 bg-slate-50 text-slate-700 shadow-sm"
         } ${!msg.isUser ? styles.kpiHtml : ""}`}
-        dangerouslySetInnerHTML={{ __html: safeHtml }}
-      />
+      >
+        {isReportHtml && (
+          <DownloadPdfButton targetId={`report-${msg.id}`} filename="kpi_report.pdf" />
+        )}
+        <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
+      </div>
       <span className="mt-1 text-[0.7rem] text-slate-400">{msg.time}</span>
     </div>
   );
@@ -280,20 +286,16 @@ function renderCustomLabel({
   );
 }
 
-const INITIAL_MESSAGE: Message = {
-  id: "0",
-  content: `Welcome to your KPI Dashboard! <strong>To get comprehensive analysis, provide your data</strong>:<br/><br/>
-<strong>📊 Comprehensive Analysis:</strong><br/>
-• Required: total_sales, labor_cost, food_cost, prime_cost<br/>
-• Optional: hours_worked, hourly_rate, previous_sales, target_margin<br/><br/>
-<strong>🎯 Performance Optimization:</strong><br/>
-• Required: current_performance, target_performance, optimization_potential, efficiency_score<br/><br/>
-Example: "Run comprehensive analysis. Total sales: $50,000. Labor cost: $15,000. Food cost: $14,000. Prime cost: $29,000."`,
-  isUser: false,
-  time: "Just now",
-};
+// INITIAL_MESSAGE created inside component to use t()
 
 export default function KPIDashboard() {
+  const { language, t } = useLanguage();
+  const INITIAL_MESSAGE: Message = {
+    id: "0",
+    content: t("welcomeMessage"),
+    isUser: false,
+    time: t("justNow"),
+  };
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -347,10 +349,10 @@ export default function KPIDashboard() {
       });
 
       setCostSlices([
-        { name: "Labor", value: parseFloat(laborPct.toFixed(1)), color: "#6366f1" },
-        { name: "Food", value: parseFloat(foodPct.toFixed(1)), color: "#8b5cf6" },
-        { name: "Overhead", value: parseFloat(overheadPct.toFixed(1)), color: "#f59e0b" },
-        { name: "Profit", value: parseFloat(profitPct.toFixed(1)), color: "#10b981" },
+        { name: t("labor"), value: parseFloat(laborPct.toFixed(1)), color: "#6366f1" },
+        { name: t("food"), value: parseFloat(foodPct.toFixed(1)), color: "#8b5cf6" },
+        { name: t("overhead"), value: parseFloat(overheadPct.toFixed(1)), color: "#f59e0b" },
+        { name: t("profit"), value: parseFloat(profitPct.toFixed(1)), color: "#10b981" },
       ]);
 
       return true;
@@ -371,10 +373,10 @@ export default function KPIDashboard() {
 
     setIsLoading(true);
     try {
-      const data = await sendChatMessage(msg);
+      const data = await sendChatMessage(msg, language);
       addMessage(data.html_response, false);
     } catch (err) {
-      addMessage(`❌ Error: ${(err as Error).message}`, false);
+      addMessage(`❌ ${t("error")}: ${(err as Error).message}`, false);
     } finally {
       setIsLoading(false);
     }
@@ -386,18 +388,18 @@ export default function KPIDashboard() {
       setIsLoading(true);
       addMessage(
         files.length === 1
-          ? `📎 Uploaded CSV: ${files[0].name}`
-          : `📎 Uploaded CSVs: ${files.map((f) => f.name).join(", ")}`,
+          ? `${t("uploadedCsv")} ${files[0].name}`
+          : `${t("uploadedCsvs")} ${files.map((f) => f.name).join(", ")}`,
         true
       );
       try {
         const formData = new FormData();
         formData.append("required_csv", files[0]);
         if (files[1]) formData.append("optional_csv", files[1]);
-        const data = await uploadCsv(formData);
+        const data = await uploadCsv(formData, language);
         addMessage(data.html_response, false);
       } catch (err) {
-        addMessage(`❌ CSV Error: ${(err as Error).message}`, false);
+        addMessage(`❌ ${t("csvError")} ${(err as Error).message}`, false);
       } finally {
         setIsLoading(false);
       }
@@ -425,14 +427,10 @@ export default function KPIDashboard() {
       <main className="relative z-10 mx-auto max-w-7xl px-6 py-10">
         <div className="text-center mb-12">
           <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-4xl font-bold text-center mb-4">
-            KPI Dashboard
+            {t("kpiDashboard")}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-xl">
-            Real-time performance metrics and analytics
-
-
-            <br />
-            for your restaurant operations
+          <p className="text-gray-500 dark:text-gray-400 text-xl whitespace-pre-line">
+            {t("kpiDashboardSubtitle")}
           </p>
         </div>
 
@@ -464,30 +462,30 @@ export default function KPIDashboard() {
         {/* ── Metric Cards ── */}
         <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            label="Revenue"
+            label={t("revenue")}
             value={metrics.revenue}
-            change="+12.5% vs last period"
+            change={t("vsLastPeriod")}
             changePositive
             variant="good"
           />
           <MetricCard
-            label="Labor Cost %"
+            label={t("laborCostPercent")}
             value={metrics.laborCost}
-            change="+2.3% vs target"
+            change={t("vsTarget")}
             changePositive={false}
             variant="warning"
           />
           <MetricCard
-            label="Food Cost %"
+            label={t("foodCostPercent")}
             value={metrics.foodCost}
-            change="-1.8% vs target"
+            change={t("vsFoodTarget")}
             changePositive
             variant="good"
           />
           <MetricCard
-            label="Prime Cost %"
+            label={t("primeCostPercent")}
             value={metrics.primeCost}
-            change="On target"
+            change={t("onTarget")}
             changePositive
             variant="good"
           />
@@ -496,7 +494,7 @@ export default function KPIDashboard() {
         {/* ── Charts Row 1 ── */}
         <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {/* Revenue Trend — ChartContainer + ChartTooltip */}
-          <ChartCard title="Revenue Trend">
+          <ChartCard title={t("revenueTrend")}>
             <ChartContainer config={revenueConfig} className="h-56 w-full">
               <LineChart data={revenueData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -535,7 +533,7 @@ export default function KPIDashboard() {
           </ChartCard>
 
           {/* Cost Distribution — plain Recharts PieChart (no ChartContainer needed) */}
-          <ChartCard title="Cost Distribution">
+          <ChartCard title={t("costDistribution")}>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -582,7 +580,7 @@ export default function KPIDashboard() {
         {/* ── Charts Row 2 ── */}
         <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {/* Weekly Performance — ChartContainer + ChartTooltip */}
-          <ChartCard title="Weekly Performance">
+          <ChartCard title={t("weeklyPerformance")}>
             <ChartContainer config={weeklyConfig} className="h-56 w-full">
               <BarChart data={weeklyData} barSize={28}>
                 <CartesianGrid
@@ -622,7 +620,7 @@ export default function KPIDashboard() {
           </ChartCard>
 
           {/* KPI Comparison — ChartContainer + ChartLegend + ChartTooltip */}
-          <ChartCard title="KPI Comparison">
+          <ChartCard title={t("kpiComparison")}>
             <ChartContainer config={radarConfig} className="h-56 w-full">
               <RadarChart data={kpiRadarData}>
                 <PolarGrid stroke="#e2e8f0" />
@@ -673,13 +671,13 @@ export default function KPIDashboard() {
                   <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
                 </svg>
               </span>
-              <h3 className="font-bold text-slate-800">AI Insights</h3>
+              <h3 className="font-bold text-slate-800">{t("aiInsights")}</h3>
             </div>
             <button
               onClick={clearChat}
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
             >
-              Clear
+              {t("clear")}
             </button>
           </div>
 
@@ -735,7 +733,7 @@ export default function KPIDashboard() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about your KPIs, or upload a CSV..."
+                placeholder={t("askAboutKpis")}
                 rows={1}
                 className="flex-1 resize-none bg-transparent text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
               />
@@ -744,7 +742,7 @@ export default function KPIDashboard() {
                 disabled={isLoading || !input.trim()}
                 className="flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-indigo-300/40 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Ask
+                {t("ask")}
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>

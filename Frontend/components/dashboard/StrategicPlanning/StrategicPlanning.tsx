@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useRef, useEffect } from "react"
 import DOMPurify from "dompurify"
@@ -18,48 +18,10 @@ import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { sendChatMessage, uploadCsv } from "@/services/strategicService"
 import styles from "./strategicReportStyles.module.css"
+import { useLanguage } from "@/providers/language-provider"
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton"
 
-const analysisCards = [
-  {
-    id: "swot",
-    icon: Layers,
-    title: "SWOT Analysis",
-    iconBg: "bg-violet-500",
-    features: [
-      "Strengths & weaknesses identification",
-      "Market opportunities analysis",
-      "Threat mitigation strategies",
-    ],
-    samplePrompt:
-      "Analysis type: SWOT\nPerform SWOT analysis. Strengths: loyal customer base, prime location; Weaknesses: high labor cost, limited seating; Opportunities: catering, online ordering; Threats: new competitors, rising food costs.",
-  },
-  {
-    id: "business_goals",
-    icon: Target,
-    title: "Business Goals",
-    iconBg: "bg-sky-500",
-    features: [
-      "SMART goal setting",
-      "Progress tracking",
-      "Milestone planning",
-    ],
-    samplePrompt:
-      "Analysis type: Business Goals\nAnalyze business goals. Revenue target: $1,200,000. Budget total: $250,000. Marketing spend: $60,000. Target ROI: 20%. Timeline: 12 months.",
-  },
-  {
-    id: "growth_strategy",
-    icon: TrendingUp,
-    title: "Growth Strategy",
-    iconBg: "bg-emerald-500",
-    features: [
-      "Expansion planning",
-      "Market analysis",
-      "Revenue projections",
-    ],
-    samplePrompt:
-      "Analysis type: Growth Strategy\nAnalyze growth strategy. Market size: $5,000,000. Market share: 3%. Competition level: 65%. Investment budget: $150,000. Target ROI: 18%.",
-  },
-]
+// analysisCards moved inside the component to use t()
 
 type ChatMessage = {
   id: number
@@ -78,6 +40,7 @@ function sanitizeStrategicHtml(dirtyHtml: string): string {
 }
 
 export default function StrategicPlanning() {
+  const { language, t } = useLanguage()
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -87,6 +50,45 @@ export default function StrategicPlanning() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const analysisCards = [
+    {
+      id: "swot",
+      icon: Layers,
+      title: t("swotAnalysis"),
+      iconBg: "bg-violet-500",
+      features: [
+        t("strengthsWeaknesses"),
+        t("marketOpportunities"),
+        t("threatMitigation"),
+      ],
+      samplePrompt: t("strategicSwotSample"),
+    },
+    {
+      id: "business_goals",
+      icon: Target,
+      title: t("businessGoals"),
+      iconBg: "bg-sky-500",
+      features: [
+        t("smartGoalSetting"),
+        t("progressTracking"),
+        t("milestonePlanning"),
+      ],
+      samplePrompt: t("strategicGoalsSample"),
+    },
+    {
+      id: "growth_strategy",
+      icon: TrendingUp,
+      title: t("growthStrategy"),
+      iconBg: "bg-emerald-500",
+      features: [
+        t("expansionPlanning"),
+        t("marketAnalysis"),
+        t("revenueProjections"),
+      ],
+      samplePrompt: t("strategicGrowthSample"),
+    },
+  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -115,7 +117,7 @@ export default function StrategicPlanning() {
     setError(null)
 
     try {
-      const response = await sendChatMessage(trimmed)
+      const response = await sendChatMessage(trimmed, language)
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
         type: "ai",
@@ -137,7 +139,7 @@ export default function StrategicPlanning() {
     const userMsg: ChatMessage = {
       id: Date.now(),
       type: "user",
-      text: `Uploaded CSV: ${file.name}`,
+      text: `${t("uploadedCsv")} ${file.name}`,
     }
     setMessages((prev) => [...prev, userMsg])
 
@@ -147,7 +149,7 @@ export default function StrategicPlanning() {
       const analysisHint = selectedCard && selectedCard !== "swot" ? selectedCard : "auto"
       formData.append("analysis_type", analysisHint)
 
-      const response = await uploadCsv(formData)
+      const response = await uploadCsv(formData, language)
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
         type: "ai",
@@ -189,19 +191,17 @@ export default function StrategicPlanning() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-4xl font-semibold text-center mb-4">
-              Strategic Planning
+              {t("strategicPlanningTitle")}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
-              Drive long-term success with SWOT analysis, goal-setting,
-              <br />
-              and growth strategies tailored to your business.
+            <p className="text-gray-500 dark:text-gray-400 text-lg whitespace-pre-line">
+              {t("strategicPlanningSubtitle")}
             </p>
           </div>
 
           {/* Error banner */}
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
-              <strong>Error:</strong> {error}
+              <strong>{t("error")}:</strong> {error}
             </div>
           )}
 
@@ -291,13 +291,18 @@ export default function StrategicPlanning() {
                   )}
                 >
                   {message.html ? (
-                    <div
-                      className={cn(
-                        styles.strategicHtml,
-                        "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                    <div id={`report-${message.id}`} className="relative w-full">
+                      {(message.html.includes("class=\"report") || message.html.includes("class='report") || message.html.includes("report__header")) && (
+                        <DownloadPdfButton targetId={`report-${message.id}`} filename="strategic_planning.pdf" />
                       )}
-                      dangerouslySetInnerHTML={{ __html: message.html }}
-                    />
+                      <div
+                        className={cn(
+                          styles.strategicHtml,
+                          "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                        )}
+                        dangerouslySetInnerHTML={{ __html: sanitizeStrategicHtml(message.html) }}
+                      />
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.text}</p>
                   )}
@@ -349,7 +354,7 @@ export default function StrategicPlanning() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Describe your SWOT, business goals, or growth strategy metrics ..."
+              placeholder={t("strategicInputPlaceholder")}
               className="flex-1 resize-none overflow-hidden min-h-5 max-h-32 bg-transparent border-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
@@ -363,7 +368,7 @@ export default function StrategicPlanning() {
             </Button>
           </div>
           <p className="text-center text-xs text-gray-500 mt-2">
-            Press Enter to send  Shift + Enter for new line  paperclip to upload CSV
+            {t("strategicFooterHint")}
           </p>
         </div>
       </div>

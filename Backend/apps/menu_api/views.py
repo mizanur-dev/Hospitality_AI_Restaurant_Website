@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import MenuChatRequestSerializer
+from apps.chat_assistant.translation_utils import translate_html_response
 
 from backend.shared.ai.strategic_recommendations import generate_ai_strategic_recommendations
 
@@ -691,6 +692,11 @@ class MenuChatAPIView(APIView):
             )
 
         message: str = serializer.validated_data["message"]
+        language = request.data.get("language", "en")
+
+        if language and language != "en":
+            from apps.chat_assistant.translation_utils import translate_prompt_to_english
+            message = translate_prompt_to_english(message, language)
 
         try:
             params, prefix_hint = _parse_kv_message(message)
@@ -699,9 +705,12 @@ class MenuChatAPIView(APIView):
             if not params:
                 return Response(
                     {
-                        "html_response": _ensure_html(
-                            "Please provide menu item details as key:value pairs.\n"
-                            "Example: Item: Chicken Biryani, Quantity Sold: 125, Price: $19.00, Cost: $6.20"
+                        "html_response": translate_html_response(
+                            _ensure_html(
+                                "Please provide menu item details as key:value pairs.\n"
+                                "Example: Item: Chicken Biryani, Quantity Sold: 125, Price: $19.00, Cost: $6.20"
+                            ),
+                            language,
                         )
                     },
                     status=status.HTTP_200_OK,
@@ -714,7 +723,7 @@ class MenuChatAPIView(APIView):
             else:  # item_optimization
                 html_response = _generate_item_optimization_html(params)
 
-            return Response({"html_response": _ensure_html(html_response)}, status=status.HTTP_200_OK)
+            return Response({"html_response": translate_html_response(_ensure_html(html_response), language)}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             trace_id = str(uuid4())
@@ -749,6 +758,8 @@ class MenuUploadAPIView(APIView):
         analysis_type = (request.data.get("analysis_type") or "").strip() or None
         if analysis_type in {"auto", ""}:
             analysis_type = None
+        
+        language = request.data.get("language", "en")
 
         try:
             from backend.consulting_services.menu.pricing_csv_processor import process_pricing_csv_data
@@ -821,7 +832,7 @@ class MenuUploadAPIView(APIView):
                     }
 
             html_response = _format_menu_csv_report_html(result or {})
-            return Response({"html_response": _ensure_html(str(html_response))}, status=status.HTTP_200_OK)
+            return Response({"html_response": translate_html_response(_ensure_html(str(html_response)), language)}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             trace_id = str(uuid4())

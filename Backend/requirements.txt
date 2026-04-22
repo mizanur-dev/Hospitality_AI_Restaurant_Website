@@ -14,3 +14,6 @@ pre-commit>=3.8
 black>=24.8
 isort>=5.13.2
 flake8>=7.1.1
+html2pdf.js
+jspdf
+html2canvas

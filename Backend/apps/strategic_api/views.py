@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import html
 import io
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import StrategicChatRequestSerializer
+from apps.chat_assistant.translation_utils import translate_html_response
 
 logger = logging.getLogger(__name__)
 
@@ -462,6 +463,11 @@ class StrategicChatAPIView(APIView):
             )
 
         message: str = serializer.validated_data["message"]
+        language = request.data.get("language", "en")
+
+        if language and language != "en":
+            from apps.chat_assistant.translation_utils import translate_prompt_to_english
+            message = translate_prompt_to_english(message, language)
 
         try:
             params = _parse_kv(message)
@@ -473,9 +479,12 @@ class StrategicChatAPIView(APIView):
             elif subtask == "business_goals":
                 if not any(k in params for k in ["revenue_target", "budget_total", "marketing_spend", "timeline"]):
                     return Response(
-                        {"html_response": _ensure_html(
-                            "Please provide business goal metrics. Example:\n"
-                            "Revenue target: $1,200,000. Budget total: $250,000. Marketing spend: $60,000. Target ROI: 20%. Timeline: 12 months."
+                        {"html_response": translate_html_response(
+                            _ensure_html(
+                                "Please provide business goal metrics. Example:\n"
+                                "Revenue target: $1,200,000. Budget total: $250,000. Marketing spend: $60,000. Target ROI: 20%. Timeline: 12 months."
+                            ),
+                            language,
                         )},
                         status=status.HTTP_200_OK,
                     )
@@ -484,9 +493,12 @@ class StrategicChatAPIView(APIView):
             else:  # growth_strategy
                 if not any(k in params for k in ["market_size", "market_share", "competition_level", "investment_budget"]):
                     return Response(
-                        {"html_response": _ensure_html(
-                            "Please provide growth strategy metrics. Example:\n"
-                            "Market size: $5,000,000. Market share: 3%. Competition level: 65%. Investment budget: $150,000. Target ROI: 18%."
+                        {"html_response": translate_html_response(
+                            _ensure_html(
+                                "Please provide growth strategy metrics. Example:\n"
+                                "Market size: $5,000,000. Market share: 3%. Competition level: 65%. Investment budget: $150,000. Target ROI: 18%."
+                            ),
+                            language,
                         )},
                         status=status.HTTP_200_OK,
                     )
@@ -507,7 +519,7 @@ class StrategicChatAPIView(APIView):
                     result.get("business_report_html") or result.get("business_report") or "No report generated."
                 )
 
-            return Response({"html_response": html_response}, status=status.HTTP_200_OK)
+            return Response({"html_response": translate_html_response(html_response, language)}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             trace_id = str(uuid4())
@@ -539,6 +551,7 @@ class StrategicUploadAPIView(APIView):
             )
 
         analysis_type = request.data.get("analysis_type", "").lower()
+        language = request.data.get("language", "en")
 
         try:
             import csv as _csv_mod
@@ -640,13 +653,16 @@ class StrategicUploadAPIView(APIView):
             # Treat analysis_type as a hint, not a hard override.
             # Only return SWOT text guidance if the CSV does NOT match any supported strategic CSV schemas.
             if hinted == "swot" and detected is None:
-                html_response = _ensure_html(
-                    "SWOT analysis works from text input rather than CSV files.\n"
-                    "Please type your SWOT data in the chat box:\n\n"
-                    "Strengths: loyal customers, prime location; "
-                    "Weaknesses: high labor cost, limited seating; "
-                    "Opportunities: catering, online ordering; "
-                    "Threats: new competitors, rising food costs."
+                html_response = translate_html_response(
+                    _ensure_html(
+                        "SWOT analysis works from text input rather than CSV files.\n"
+                        "Please type your SWOT data in the chat box:\n\n"
+                        "Strengths: loyal customers, prime location; "
+                        "Weaknesses: high labor cost, limited seating; "
+                        "Opportunities: catering, online ordering; "
+                        "Threats: new competitors, rising food costs."
+                    ),
+                    language,
                 )
             else:
                 order: list[str] = []
@@ -676,7 +692,7 @@ class StrategicUploadAPIView(APIView):
 
                 html_response = _format_csv_report_html(result if isinstance(result, dict) else {})
 
-            return Response({"html_response": _ensure_html(html_response)}, status=status.HTTP_200_OK)
+            return Response({"html_response": translate_html_response(_ensure_html(html_response), language)}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             trace_id = str(uuid4())

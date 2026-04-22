@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { LanguageProvider } from "@/providers/language-provider";
 import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "Hospitality AI Website",
@@ -21,8 +22,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Toaster/>
-          {children}
+          <LanguageProvider>
+            <Toaster/>
+            {children}
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -600,6 +600,11 @@ class KpiChatAPIView(APIView):
             )
 
         message: str = serializer.validated_data["message"]
+        language: str = request.data.get("language", "en")
+
+        if language and language != "en":
+            from apps.chat_assistant.translation_utils import translate_prompt_to_english
+            message = translate_prompt_to_english(message, language)
 
         try:
             # Prefer KPI-specific handler to preserve existing KPI calculation logic.
@@ -607,7 +612,12 @@ class KpiChatAPIView(APIView):
 
             result = handle_kpi_analysis(message)
             if result is None:
-                result = chat_with_gpt(message, context="kpi")
+                result = chat_with_gpt(message, context="kpi", language=language)
+
+            # Translate to requested language if needed
+            if language and language != "en":
+                from apps.chat_assistant.translation_utils import translate_html_response
+                result = translate_html_response(result, language)
 
             return Response({"html_response": _ensure_html(result)}, status=status.HTTP_200_OK)
         except Exception as exc:

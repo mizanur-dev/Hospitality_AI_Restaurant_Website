@@ -24,32 +24,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useLanguage } from "@/providers/language-provider"
+import type { Language } from "@/lib/translations"
 
 const chatHistory = [
-  { id: 1, title: "KPI Analysis - Labor Cost Analysis", href: "/dashboard/kpi-analysis" },
-  { id: 2, title: "HR Optimization Review", href: "/dashboard/hr-optimization" },
-  { id: 3, title: "Beverage Inventory Check", href: "/dashboard/beverage-insights" },
-  { id: 4, title: "Menu Engineering Review", href: "/dashboard/menu-engineering" },
-  { id: 5, title: "Recipe Intelligence Analysis", href: "/dashboard/recipe-intelligence" },
-  { id: 6, title: "Strategic Planning Session", href: "/dashboard/strategic-planning" },
-  { id: 7, title: "CSV KPI Dashboard Review", href: "/dashboard/csv-kpi-dashboard" },
+  { id: 1, titleKey: "kpiAnalysis" as const, titleSuffix: " - Labor Cost Analysis", href: "/dashboard/kpi-analysis" },
+  { id: 2, titleKey: "hrOptimization" as const, titleSuffix: " Review", href: "/dashboard/hr-optimization" },
+  { id: 3, titleKey: "beverageInsights" as const, titleSuffix: " Check", href: "/dashboard/beverage-insights" },
+  { id: 4, titleKey: "menuEngineering" as const, titleSuffix: " Review", href: "/dashboard/menu-engineering" },
+  { id: 5, titleKey: "recipeIntelligence" as const, titleSuffix: " Analysis", href: "/dashboard/recipe-intelligence" },
+  { id: 6, titleKey: "strategicPlanning" as const, titleSuffix: " Session", href: "/dashboard/strategic-planning" },
+  { id: 7, titleKey: "csvKpiDashboard" as const, titleSuffix: " Review", href: "/dashboard/csv-kpi-dashboard" },
 ]
 
 const features = [
-  { icon: BarChart3, label: "KPI Analysis", href: "/dashboard/kpi-analysis" },
-  { icon: Users, label: "HR Optimization", href: "/dashboard/hr-optimization" },
-  { icon: Wine, label: "Beverage Insights", href: "/dashboard/beverage-insights" },
-  { icon: ChefHat, label: "Menu Engineering", href: "/dashboard/menu-engineering" },
-  { icon: Lightbulb, label: "Recipe Intelligence", href: "/dashboard/recipe-intelligence" },
-  { icon: TrendingUp, label: "Strategic Planning", href: "/dashboard/strategic-planning" },
-  { icon: FileSpreadsheet, label: "CSV KPI Dashboard", href: "/dashboard/csv-kpi-dashboard" },
+  { icon: BarChart3, labelKey: "kpiAnalysis" as const, href: "/dashboard/kpi-analysis" },
+  { icon: Users, labelKey: "hrOptimization" as const, href: "/dashboard/hr-optimization" },
+  { icon: Wine, labelKey: "beverageInsights" as const, href: "/dashboard/beverage-insights" },
+  { icon: ChefHat, labelKey: "menuEngineering" as const, href: "/dashboard/menu-engineering" },
+  { icon: Lightbulb, labelKey: "recipeIntelligence" as const, href: "/dashboard/recipe-intelligence" },
+  { icon: TrendingUp, labelKey: "strategicPlanning" as const, href: "/dashboard/strategic-planning" },
+  { icon: FileSpreadsheet, labelKey: "csvKpiDashboard" as const, href: "/dashboard/csv-kpi-dashboard" },
 ]
 
 export default function Sidebar() {
   const { open, setOpen } = useSidebar()
   const router = useRouter()
   const pathname = usePathname()
-  const selectedFeature = features.find(feature => feature.href === pathname)?.label || "KPI Analysis"
+  const { language, setLanguage, t } = useLanguage()
+  const selectedFeature = features.find(feature => feature.href === pathname)?.labelKey || "kpiAnalysis"
 
   const handleFeatureClick = (feature: typeof features[0]) => {
     router.push(feature.href)
@@ -91,10 +94,10 @@ export default function Sidebar() {
               <span className="text-white text-sm font-bold">H</span>
             </div>
             <div>
-              <div className="font-semibold text-sm text-gray-900 dark:text-white">Hospitality AI</div>
+              <div className="font-semibold text-sm text-gray-900 dark:text-white">{t("hospitalityAi")}</div>
               <div className="text-xs text-green-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                AI Assistant Active
+                {t("aiAssistantActive")}
               </div>
             </div>
           </div>
@@ -118,14 +121,14 @@ export default function Sidebar() {
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
-            New Chat
+            {t("newChat")}
           </Button>
         </div>
 
         {/* Chat History */}
         <div className="px-4 mb-4">
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-            Chat History
+            {t("chatHistory")}
           </h3>
           <ScrollArea className="h-48">
             <div className="space-y-1">
@@ -135,30 +138,31 @@ export default function Sidebar() {
                   onClick={() => handleChatHistoryClick(chat)}
                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors truncate"
                 >
-                  {chat.title}
+                  {t(chat.titleKey)}{chat.titleSuffix}
                 </button>
               ))}
             </div>
           </ScrollArea>
           <Button variant="outline" className="w-full mt-2" onClick={() => router.push("/dashboard/history")}>
-            See all history
+            {t("seeAllHistory")}
           </Button>
         </div>
 
         {/* Features */}
         <div className="flex-1 px-4 overflow-hidden">
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-            Features
+            {t("features")}
           </h3>
           <ScrollArea className="h-full pb-4">
             <div className="space-y-1">
               {features.map((feature) => {
                 const Icon = feature.icon
-                const isSelected = selectedFeature === feature.label
+                const label = t(feature.labelKey)
+                const isSelected = selectedFeature === feature.labelKey
 
                 return (
                   <button
-                    key={feature.label}
+                    key={feature.labelKey}
                     onClick={() => handleFeatureClick(feature)}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group",
@@ -168,7 +172,7 @@ export default function Sidebar() {
                     )}
                   >
                     <Icon className={cn("h-4 w-4", isSelected ? "text-white" : "text-gray-500 group-hover:text-current")} />
-                    <span>{feature.label}</span>
+                    <span>{label}</span>
                     {isSelected && (
                       <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                     )}
@@ -186,16 +190,16 @@ export default function Sidebar() {
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           >
             <User className="h-4 w-4" />
-            User Profile
+            {t("userProfile")}
           </button>
           <Select
-            defaultValue="en"
+            value={language}
             onValueChange={(value) => {
-              console.log("Selected language:", value)
+              setLanguage(value as Language)
             }}
           >
             <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Select language" />
+              <SelectValue placeholder={t("selectLanguage")} />
             </SelectTrigger>
 
             <SelectContent align="end">

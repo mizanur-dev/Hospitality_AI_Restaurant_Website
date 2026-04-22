@@ -35,11 +35,11 @@ async function readJsonSafe(res: Response): Promise<UnknownJson> {
   return { raw: text } as unknown;
 }
 
-export async function sendChatMessage(message: string): Promise<RecipeChatResponse> {
+export async function sendChatMessage(message: string, language: string = "en"): Promise<RecipeChatResponse> {
   const res = await fetch(buildUrl("/api/recipe/chat/"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, language }),
   });
 
   const data = (await readJsonSafe(res)) as RecipeChatResponse & RecipeApiError;
@@ -53,7 +53,8 @@ export async function sendChatMessage(message: string): Promise<RecipeChatRespon
   return { html_response: data.html_response };
 }
 
-export async function uploadCsv(formData: FormData): Promise<RecipeChatResponse> {
+export async function uploadCsv(formData: FormData, language: string = "en"): Promise<RecipeChatResponse> {
+  formData.append("language", language);
   const res = await fetch(buildUrl("/api/recipe/upload/"), {
     method: "POST",
     body: formData,

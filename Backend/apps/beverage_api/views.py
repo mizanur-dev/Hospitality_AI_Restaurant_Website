@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import BeverageChatRequestSerializer
+from apps.chat_assistant.translation_utils import translate_html_response
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +211,11 @@ class BeverageChatAPIView(APIView):
             )
 
         message: str = serializer.validated_data["message"]
+        language = request.data.get("language", "en")
+
+        if language and language != "en":
+            from apps.chat_assistant.translation_utils import translate_prompt_to_english
+            message = translate_prompt_to_english(message, language)
 
         try:
             params = _parse_kv_message(message)
@@ -218,8 +224,11 @@ class BeverageChatAPIView(APIView):
             if not params:
                 return Response(
                     {
-                        "html_response": _ensure_html(
-                            "Provide beverage inputs as key:value pairs. Example: expected_oz: 1500, actual_oz: 1650"
+                        "html_response": translate_html_response(
+                            _ensure_html(
+                                "Provide beverage inputs as key:value pairs. Example: expected_oz: 1500, actual_oz: 1650"
+                            ),
+                            language,
                         )
                     },
                     status=status.HTTP_200_OK,
@@ -242,7 +251,7 @@ class BeverageChatAPIView(APIView):
                 data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
                 html_response = data.get("business_report_html") or data.get("business_report")
                 return Response(
-                    {"html_response": _ensure_html(str(html_response))},
+                    {"html_response": translate_html_response(_ensure_html(str(html_response)), language)},
                     status=status.HTTP_200_OK,
                 )
 
@@ -301,6 +310,8 @@ class BeverageUploadAPIView(APIView):
         analysis_type = (request.data.get("analysis_type") or "").strip() or None
         if analysis_type in {"auto", ""}:
             analysis_type = None
+        
+        language = request.data.get("language", "en")
 
         try:
             from backend.consulting_services.beverage.bar_inventory_csv_processor import (
@@ -429,7 +440,7 @@ class BeverageUploadAPIView(APIView):
 
             html_response = _format_beverage_csv_report_html(result or {})
             return Response(
-                {"html_response": _ensure_html(str(html_response))},
+                {"html_response": translate_html_response(_ensure_html(str(html_response)), language)},
                 status=status.HTTP_200_OK,
             )
         except Exception as exc:

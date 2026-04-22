@@ -346,6 +346,11 @@ class HrChatAPIView(APIView):
             )
 
         message: str = serializer.validated_data["message"]
+        language: str = request.data.get("language", "en")
+
+        if language and language != "en":
+            from apps.chat_assistant.translation_utils import translate_prompt_to_english
+            message = translate_prompt_to_english(message, language)
 
         try:
             params = _parse_kv_message(message)
@@ -378,8 +383,12 @@ class HrChatAPIView(APIView):
 
             if isinstance(result, dict) and result.get("status") == "success":
                 html_response = _format_hr_dashboard_like_html(subtask=subtask, result=result)
+                final_html = _ensure_html(str(html_response))
+                if language and language != "en":
+                    from apps.chat_assistant.translation_utils import translate_html_response
+                    final_html = translate_html_response(final_html, language)
                 return Response(
-                    {"html_response": _ensure_html(str(html_response))},
+                    {"html_response": final_html},
                     status=status.HTTP_200_OK,
                 )
 
@@ -481,8 +490,13 @@ class HrUploadAPIView(APIView):
                 )
 
             combined_html_parts.append("</div>")
+            final_html = "\n".join(combined_html_parts)
+            language = request.data.get("language", "en")
+            if language and language != "en":
+                from apps.chat_assistant.translation_utils import translate_html_response
+                final_html = translate_html_response(final_html, language)
             return Response(
-                {"html_response": "\n".join(combined_html_parts)},
+                {"html_response": final_html},
                 status=status.HTTP_200_OK,
             )
         except Exception as exc:

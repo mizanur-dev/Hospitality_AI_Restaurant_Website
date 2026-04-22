@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useRef, useEffect } from "react"
 import DOMPurify from "dompurify"
@@ -18,48 +18,10 @@ import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { sendChatMessage, uploadCsv } from "@/services/recipeService"
 import styles from "./recipeReportStyles.module.css"
+import { useLanguage } from "@/providers/language-provider"
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton"
 
-const analysisCards = [
-  {
-    id: "create_recipe",
-    icon: DollarSign,
-    title: "Create Recipe",
-    iconBg: "bg-green-500",
-    features: [
-      "Ingredient suggestion",
-      "Auto-costing",
-      "Nutrition analysis",
-    ],
-    samplePrompt:
-      'Create a recipe named: recipe_name "Grilled Salmon", servings 6, prep_time 20, cook_time 30, ingredients: Salmon 24 oz, Lemon 4 oz, Butter 2 oz, Garlic 1 oz, ingredient_cost 18.00, labor_cost 4.50, recipe_price 28.00. Include ingredient suggestions, brief steps, nutrition per serving, and auto-costing.',
-  },
-  {
-    id: "cost_analysis",
-    icon: ShoppingBasket,
-    title: "Cost Analysis",
-    iconBg: "bg-purple-500",
-    features: [
-      "Ingredient costs tracking",
-      "Margin calculator",
-      "Price recommendations",
-    ],
-    samplePrompt:
-      'Analyze recipe costs of: recipe_name "Grilled Salmon", ingredient_cost 5.80, portion_cost 2.30, recipe_price 13.50, servings 2, labor_cost 3.50. Calculate food cost %, margin, and recommend price to hit 70% margin.',
-  },
-  {
-    id: "scale_recipe",
-    icon: TrendingUp,
-    title: "Scale Recipes",
-    iconBg: "bg-cyan-500",
-    features: [
-      "Batch scaling",
-      "Unit conversion",
-      "Yield optimization",
-    ],
-    samplePrompt:
-      'Scale "Classic Tomato Soup" which serves 6 to 48 servings. Provide ingredient quantities, converted units, and suggested batch yields.',
-  },
-]
+// analysisCards moved inside the component to use t()
 
 type ChatMessage = {
   id: number
@@ -78,6 +40,7 @@ function sanitizeRecipeHtml(dirtyHtml: string): string {
 }
 
 export default function RecipeIntelligence() {
+  const { language, t } = useLanguage()
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -87,6 +50,45 @@ export default function RecipeIntelligence() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const analysisCards = [
+    {
+      id: "create_recipe",
+      icon: DollarSign,
+      title: t("createRecipe"),
+      iconBg: "bg-green-500",
+      features: [
+        t("ingredientSuggestion"),
+        t("autoCosting"),
+        t("nutritionAnalysis"),
+      ],
+      samplePrompt: t("recipeCreateSample"),
+    },
+    {
+      id: "cost_analysis",
+      icon: ShoppingBasket,
+      title: t("costAnalysis"),
+      iconBg: "bg-purple-500",
+      features: [
+        t("ingredientCostsTracking"),
+        t("marginCalculator"),
+        t("priceRecommendations"),
+      ],
+      samplePrompt: t("recipeCostSample"),
+    },
+    {
+      id: "scale_recipe",
+      icon: TrendingUp,
+      title: t("scaleRecipes"),
+      iconBg: "bg-cyan-500",
+      features: [
+        t("batchScaling"),
+        t("unitConversion"),
+        t("yieldOptimization"),
+      ],
+      samplePrompt: t("recipeScaleSample"),
+    },
+  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -115,7 +117,7 @@ export default function RecipeIntelligence() {
     setError(null)
 
     try {
-      const response = await sendChatMessage(trimmed)
+      const response = await sendChatMessage(trimmed, language)
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
         type: "ai",
@@ -137,7 +139,7 @@ export default function RecipeIntelligence() {
     const userMsg: ChatMessage = {
       id: Date.now(),
       type: "user",
-      text: ` Uploaded CSV: ${file.name}`,
+      text: `${t("uploadedCsv")} ${file.name}`,
     }
     setMessages((prev) => [...prev, userMsg])
 
@@ -146,7 +148,7 @@ export default function RecipeIntelligence() {
       formData.append("required_csv", file)
       if (selectedCard) formData.append("analysis_type", selectedCard)
 
-      const response = await uploadCsv(formData)
+      const response = await uploadCsv(formData, language)
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
         type: "ai",
@@ -188,19 +190,17 @@ export default function RecipeIntelligence() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-4xl font-semibold text-center mb-4">
-              Recipe Intelligence
+              {t("recipeIntelligenceTitle")}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
-              Master your recipe costs and ingredient efficiency with precision
-              <br />
-              costing, optimization strategies, and scaling solutions.
+            <p className="text-gray-500 dark:text-gray-400 text-lg whitespace-pre-line">
+              {t("recipeIntelligenceSubtitle")}
             </p>
           </div>
 
           {/* Error banner */}
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
-              <strong>Error:</strong> {error}
+              <strong>{t("error")}:</strong> {error}
             </div>
           )}
 
@@ -290,13 +290,18 @@ export default function RecipeIntelligence() {
                   )}
                 >
                   {message.html ? (
-                    <div
-                      className={cn(
-                        styles.recipeHtml,
-                        "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                    <div id={`report-${message.id}`} className="relative w-full">
+                      {(message.html.includes("class=\"report") || message.html.includes("class='report") || message.html.includes("report__header")) && (
+                        <DownloadPdfButton targetId={`report-${message.id}`} filename="recipe_intelligence.pdf" />
                       )}
-                      dangerouslySetInnerHTML={{ __html: message.html }}
-                    />
+                      <div
+                        className={cn(
+                          styles.recipeHtml,
+                          "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                        )}
+                        dangerouslySetInnerHTML={{ __html: sanitizeRecipeHtml(message.html) }}
+                      />
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.text}</p>
                   )}
@@ -348,7 +353,7 @@ export default function RecipeIntelligence() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               disabled={isLoading}
-              placeholder='Select a card to load a sample prompt, or type recipe details (recipe_name "My Dish", servings 4, ingredient_cost 12.00...)'
+              placeholder={t("recipeInputPlaceholder")}
               className="flex-1 resize-none overflow-hidden min-h-5 max-h-32 bg-transparent border-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
@@ -362,7 +367,7 @@ export default function RecipeIntelligence() {
             </Button>
           </div>
           <p className="text-center text-xs text-gray-500 mt-2">
-            Press Enter to send  Shift + Enter for new line   to upload CSV
+            {t("recipeFooterHint")}
           </p>
         </div>
       </div>

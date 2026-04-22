@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import RecipeChatRequestSerializer
+from apps.chat_assistant.translation_utils import translate_html_response
 
 logger = logging.getLogger(__name__)
 
@@ -719,6 +720,11 @@ class RecipeChatAPIView(APIView):
             )
 
         message: str = serializer.validated_data["message"]
+        language = request.data.get("language", "en")
+
+        if language and language != "en":
+            from apps.chat_assistant.translation_utils import translate_prompt_to_english
+            message = translate_prompt_to_english(message, language)
 
         try:
             # ── Strip opening instruction prefix ─────────────────────────────
@@ -748,9 +754,12 @@ class RecipeChatAPIView(APIView):
 
             if not params and not recipe_name:
                 return Response(
-                    {"html_response": _ensure_html(
-                        "Please provide recipe details, e.g.:\n"
-                        'recipe_name "Grilled Salmon", servings 6, ingredient_cost 18.00, recipe_price 28.00'
+                    {"html_response": translate_html_response(
+                        _ensure_html(
+                            "Please provide recipe details, e.g.:\n"
+                            'recipe_name "Grilled Salmon", servings 6, ingredient_cost 18.00, recipe_price 28.00'
+                        ),
+                        language,
                     )},
                     status=status.HTTP_200_OK,
                 )
@@ -804,7 +813,7 @@ class RecipeChatAPIView(APIView):
                     )
                     html_response = _ensure_html(rhtml or "No scaling report generated.")
 
-            return Response({"html_response": html_response}, status=status.HTTP_200_OK)
+            return Response({"html_response": translate_html_response(html_response, language)}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             trace_id = str(uuid4())
@@ -836,6 +845,7 @@ class RecipeUploadAPIView(APIView):
             )
 
         try:
+            language = request.data.get("language", "en")
             from backend.consulting_services.recipe.analysis_functions import process_recipe_csv_data
 
             raw_bytes = required_csv.read()
@@ -845,7 +855,7 @@ class RecipeUploadAPIView(APIView):
 
             result = process_recipe_csv_data(_fresh())
             html_response = _format_csv_report_html(result if isinstance(result, dict) else {})
-            return Response({"html_response": _ensure_html(html_response)}, status=status.HTTP_200_OK)
+            return Response({"html_response": translate_html_response(_ensure_html(html_response), language)}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             trace_id = str(uuid4())

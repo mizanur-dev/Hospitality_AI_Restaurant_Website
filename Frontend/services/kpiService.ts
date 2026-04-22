@@ -38,13 +38,13 @@ async function readJsonSafeUnknown(res: Response): Promise<UnknownJson> {
   return { raw: text } as unknown;
 }
 
-export async function sendChatMessage(message: string): Promise<KpiChatResponse> {
+export async function sendChatMessage(message: string, language: string = "en"): Promise<KpiChatResponse> {
   const res = await fetch(buildUrl("/api/kpi/chat/"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, language }),
   });
 
   const data = (await readJsonSafeUnknown(res)) as KpiChatResponse & KpiApiError;
@@ -63,7 +63,8 @@ export async function sendChatMessage(message: string): Promise<KpiChatResponse>
   return { html_response: data.html_response };
 }
 
-export async function uploadCsv(formData: FormData): Promise<KpiChatResponse> {
+export async function uploadCsv(formData: FormData, language: string = "en"): Promise<KpiChatResponse> {
+  formData.append("language", language);
   const res = await fetch(buildUrl("/api/kpi/upload/"), {
     method: "POST",
     body: formData,

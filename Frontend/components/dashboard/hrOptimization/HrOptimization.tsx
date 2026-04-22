@@ -18,48 +18,8 @@ import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { sendChatMessage, uploadCsv } from "@/services/hrService"
 import styles from "./hrReportStyles.module.css"
-
-const analysisCards = [
-  {
-    id: "retention",
-    icon: Users,
-    title: "Staff Retention",
-    iconBg: "bg-green-500",
-    samplePrompt:
-      "Staff retention sample: turnover_rate: 0.45, industry_average: 0.70, department: Front of House, employee_count: 25",
-    features: [
-      "Turnover analysis ",
-      "Retention strategies",
-      "Cost impact assessment",
-    ],
-  },
-  {
-    id: "scheduling",
-    icon: ClipboardCheck,
-    title: "Labor Scheduling",
-    iconBg: "bg-purple-500",
-    samplePrompt:
-      "Labor scheduling sample: total_sales: 50000, labor_hours: 800, hourly_rate: 15, peak_hours: 200, date: 2026-02-01, department: Kitchen.",
-    features: [
-      "Shift optimization",
-      "Peak hour coverage",
-      "Overtime management",
-    ],
-  },
-  {
-    id: "performance",
-    icon: TrendingUp,
-    title: "Training Programs",
-    iconBg: "bg-cyan-500",
-    samplePrompt:
-      "Training programs sample: customer_satisfaction: 0.85, sales_performance: 0.95, efficiency_score: 0.80, attendance_rate: 0.92, employee name: Alex Rivera, department: Service",
-    features: [
-      "Onboarding optimization",
-      "Skill development",
-      "Performance tracking",
-    ],
-  },
-]
+import { useLanguage } from "@/providers/language-provider"
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton"
 
 type ChatMessage = {
   id: number
@@ -79,6 +39,7 @@ function sanitizeHrHtml(dirtyHtml: string): string {
 }
 
 export default function HROptimization() {
+  const { language, t } = useLanguage()
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -87,6 +48,45 @@ export default function HROptimization() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const analysisCards = [
+    {
+      id: "retention",
+      icon: Users,
+      title: t("staffRetention"),
+      iconBg: "bg-green-500",
+      samplePrompt: t("hrRetentionSample"),
+      features: [
+        t("turnoverAnalysis"),
+        t("retentionStrategies"),
+        t("costImpactAssessment"),
+      ],
+    },
+    {
+      id: "scheduling",
+      icon: ClipboardCheck,
+      title: t("laborScheduling"),
+      iconBg: "bg-purple-500",
+      samplePrompt: t("hrSchedulingSample"),
+      features: [
+        t("shiftOptimization"),
+        t("peakHourCoverage"),
+        t("overtimeManagement"),
+      ],
+    },
+    {
+      id: "performance",
+      icon: TrendingUp,
+      title: t("trainingPrograms"),
+      iconBg: "bg-cyan-500",
+      samplePrompt: t("hrPerformanceSample"),
+      features: [
+        t("onboardingOptimization"),
+        t("skillDevelopment"),
+        t("performanceTracking"),
+      ],
+    },
+  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -109,12 +109,12 @@ export default function HROptimization() {
     setInputValue("")
 
     try {
-      const { html_response } = await sendChatMessage(message)
+      const { html_response } = await sendChatMessage(message, language)
       setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", html: html_response }])
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong."
       setError(msg)
-      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", text: `Error: ${msg}` }])
+      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", text: `${t("error")}: ${msg}` }])
     } finally {
       setIsLoading(false)
     }
@@ -149,8 +149,8 @@ export default function HROptimization() {
         type: "user",
         text:
           files.length === 1
-            ? `Uploaded CSV: ${files[0].name}`
-            : `Uploaded CSVs: ${files.map((f) => f.name).join(", ")}`,
+            ? `${t("uploadedCsv")} ${files[0].name}`
+            : `${t("uploadedCsvs")} ${files.map((f) => f.name).join(", ")}`,
       },
     ])
 
@@ -159,12 +159,12 @@ export default function HROptimization() {
       formData.append("required_csv", files[0])
       if (files[1]) formData.append("optional_csv", files[1])
 
-      const { html_response } = await uploadCsv(formData)
+      const { html_response } = await uploadCsv(formData, language)
       setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", html: html_response }])
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong."
       setError(msg)
-      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", text: `Error: ${msg}` }])
+      setMessages((prev) => [...prev, { id: baseId + 1, type: "ai", text: `${t("error")}: ${msg}` }])
     } finally {
       setIsLoading(false)
     }
@@ -188,12 +188,10 @@ export default function HROptimization() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-4xl font-semibold text-center mb-4">
-              HR Optimization
+              {t("hrOptimizationTitle")}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
-              Optimize your workforce management with AI-driven insights
-              <br />
-              for retention, scheduling, and performance tracking.
+            <p className="text-gray-500 dark:text-gray-400 text-lg whitespace-pre-line">
+              {t("hrOptimizationSubtitle")}
             </p>
           </div>
 
@@ -289,15 +287,20 @@ export default function HROptimization() {
                   )}
                 >
                   {message.type === "ai" && message.html ? (
-                    <div
-                      className={cn(
-                        styles.hrHtml,
-                        "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                    <div id={`report-${message.id}`} className="relative w-full">
+                      {(message.html.includes("class=\"report") || message.html.includes("class='report") || message.html.includes("report__header")) && (
+                        <DownloadPdfButton targetId={`report-${message.id}`} filename="hr_optimization.pdf" />
                       )}
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeHrHtml(message.html),
-                      }}
-                    />
+                      <div
+                        className={cn(
+                          styles.hrHtml,
+                          "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                        )}
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeHrHtml(message.html),
+                        }}
+                      />
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.text}</p>
                   )}
@@ -311,7 +314,7 @@ export default function HROptimization() {
               </div>
             ))}
 
-            {/* Animated loading dots (match KPI Analysis page) */}
+            {/* Animated loading dots */}
             {isLoading && (
               <div className="flex gap-3 justify-start">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
@@ -357,7 +360,7 @@ export default function HROptimization() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Enter HR inputs as key:value pairs (e.g., turnover_rate: 45, industry_average: 70)"
+              placeholder={t("hrInputPlaceholder")}
               disabled={isLoading}
               className="flex-1 resize-none overflow-hidden min-h-5 max-h-32 bg-transparent border-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
@@ -372,7 +375,7 @@ export default function HROptimization() {
             </Button>
           </div>
           <p className="text-center text-xs text-gray-500 mt-2">
-            Press Enter to send, Shift + Enter for new line
+            {t("pressEnterToSend")}
           </p>
         </div>
       </div>

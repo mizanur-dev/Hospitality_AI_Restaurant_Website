@@ -174,21 +174,21 @@ font-weight: 600;
 ### Badges
 
 **Good Status:**
-```html
+
 <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-semibold">
   ✓ On Target
 </span>
 ```
 
 **Warning Status:**
-```html
+
 <span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-semibold">
   ⚠ Watch
 </span>
 ```
 
 **Alert Status:**
-```html
+
 <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
   ⚠️ Alert
 </span>

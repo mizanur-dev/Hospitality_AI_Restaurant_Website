@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useRef, useEffect } from "react"
 import DOMPurify from "dompurify"
@@ -18,35 +18,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { sendChatMessage, uploadCsv } from "@/services/menuService"
 import styles from "./menuReportStyles.module.css"
 
-const analysisCards = [
-  {
-    id: "analysis",
-    icon: TrendingUp,
-    title: "Menu Analysis",
-    iconBg: "bg-green-500",
-    features: ["Sales mix analysis", "Contribution margins", "Menu matrix mapping"],
-    samplePrompt:
-      "Analyze my menu analysis.\nItem: Chicken Biryani. Quantity Sold: 125. Price: $19.00. Cost: $6.20. Revenue: $2,375.00. Profit: $1,580.00. Category: Entrees. Food Cost %: 32.6%. Contribution Margin %: 67.4%.\nInclude: Sales mix analysis; Contribution margins; Menu matrix mapping.",
-  },
-  {
-    id: "pricing",
-    icon: TrendingUp,
-    title: "Pricing Strategy",
-    iconBg: "bg-purple-500",
-    features: ["Price elasticity", "Competitive analysis", "Profit maximization"],
-    samplePrompt:
-      "Analyze my pricing strategy.\nItem: Margherita Pizza. Item Price: $18.00. Item Cost: $5.50. Competitor Price: $16.00. Target Food Cost Percent: 32%. Elasticity Index: 1.2. Category: Pizza.\nFocus on: Price elasticity; Competitive analysis; Profit maximization.",
-  },
-  {
-    id: "optimization",
-    icon: Utensils,
-    title: "Item Optimization",
-    iconBg: "bg-cyan-500",
-    features: ["Recipe costing", "Portion control", "Description optimization"],
-    samplePrompt:
-      "Analyze my item optimization.\nItem: Veggie Wrap. Quantity Sold: 12. Item Cost: $3.50. Portion Size: 220g. Portion Cost: $1.20. Waste Percent: 8%. Recipe Ingredients: Spinach wrap; seasonal vegetables; dressing. Description: Fresh seasonal vegetables in a spinach wrap.\nInclude: Recipe costing; Portion control; Description optimization.",
-  },
-]
+import { useLanguage } from "@/providers/language-provider"
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton"
+
+// analysisCards moved inside the component to use t()
 
 type ChatMessage = {
   id: number
@@ -65,6 +40,7 @@ function sanitizeMenuHtml(dirtyHtml: string): string {
 }
 
 export default function MenuEngineering() {
+  const { language, t } = useLanguage()
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -74,6 +50,33 @@ export default function MenuEngineering() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const analysisCards = [
+    {
+      id: "analysis",
+      icon: TrendingUp,
+      title: t("menuAnalysisTitle"),
+      iconBg: "bg-green-500",
+      features: [t("salesMixAnalysis"), t("contributionMargins"), t("menuMatrixMapping")],
+      samplePrompt: t("menuAnalysisSample"),
+    },
+    {
+      id: "pricing",
+      icon: TrendingUp,
+      title: t("pricingStrategyTitle"),
+      iconBg: "bg-purple-500",
+      features: [t("priceElasticity"), t("competitiveAnalysis"), t("profitMaximization")],
+      samplePrompt: t("menuPricingSample"),
+    },
+    {
+      id: "optimization",
+      icon: Utensils,
+      title: t("itemOptimizationTitle"),
+      iconBg: "bg-cyan-500",
+      features: [t("recipeCosting"), t("portionControl"), t("descriptionOptimization")],
+      samplePrompt: t("menuOptimizationSample"),
+    },
+  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -102,7 +105,7 @@ export default function MenuEngineering() {
     setError(null)
 
     try {
-      const response = await sendChatMessage(trimmed)
+      const response = await sendChatMessage(trimmed, language)
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
         type: "ai",
@@ -124,7 +127,7 @@ export default function MenuEngineering() {
     const userMsg: ChatMessage = {
       id: Date.now(),
       type: "user",
-      text: ` Uploaded CSV: ${file.name}`,
+      text: `${t("uploadedCsv")} ${file.name}`,
     }
     setMessages((prev) => [...prev, userMsg])
 
@@ -133,7 +136,7 @@ export default function MenuEngineering() {
       formData.append("required_csv", file)
       if (selectedCard) formData.append("analysis_type", selectedCard)
 
-      const response = await uploadCsv(formData)
+      const response = await uploadCsv(formData, language)
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
         type: "ai",
@@ -141,7 +144,7 @@ export default function MenuEngineering() {
       }
       setMessages((prev) => [...prev, aiMsg])
     } catch (err) {
-      setError(err instanceof Error ? err.message : "CSV upload failed.")
+      setError(err instanceof Error ? err.message : t("csvError"))
     } finally {
       setIsLoading(false)
     }
@@ -172,18 +175,16 @@ export default function MenuEngineering() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-4xl font-semibold text-center mb-4">
-              Menu Engineering
+              {t("menuEngineering")}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
-              Transform your menu into a profit driver with data-driven insights
-              <br />
-              on product mix, pricing strategies, and design optimization.
+            <p className="text-gray-500 dark:text-gray-400 text-lg whitespace-pre-line">
+              {t("menuEngineeringSubtitle")}
             </p>
           </div>
 
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
-              <strong>Error:</strong> {error}
+              <strong>{t("error")}:</strong> {error}
             </div>
           )}
 
@@ -271,13 +272,18 @@ export default function MenuEngineering() {
                   )}
                 >
                   {message.html ? (
-                    <div
-                      className={cn(
-                        styles.menuHtml,
-                        "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                    <div id={`report-${message.id}`} className="relative w-full">
+                      {(message.html.includes("class=\"report") || message.html.includes("class='report") || message.html.includes("report__header")) && (
+                        <DownloadPdfButton targetId={`report-${message.id}`} filename="menu_engineering.pdf" />
                       )}
-                      dangerouslySetInnerHTML={{ __html: message.html }}
-                    />
+                      <div
+                        className={cn(
+                          styles.menuHtml,
+                          "prose prose-sm max-w-none whitespace-normal dark:prose-invert"
+                        )}
+                        dangerouslySetInnerHTML={{ __html: sanitizeMenuHtml(message.html) }}
+                      />
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.text}</p>
                   )}
@@ -327,7 +333,7 @@ export default function MenuEngineering() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               disabled={isLoading}
-              placeholder="Select a card to load a sample prompt, or type menu item details..."
+              placeholder={t("menuInputPlaceholder")}
               className="flex-1 resize-none overflow-hidden min-h-5 max-h-32 bg-transparent border-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
@@ -341,7 +347,7 @@ export default function MenuEngineering() {
             </Button>
           </div>
           <p className="text-center text-xs text-gray-500 mt-2">
-            Press Enter to send  Shift + Enter for new line   to upload CSV
+            {t("menuFooterHint")}
           </p>
         </div>
       </div>

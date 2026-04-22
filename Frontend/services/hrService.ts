@@ -38,13 +38,13 @@ async function readJsonSafeUnknown(res: Response): Promise<UnknownJson> {
   return { raw: text } as unknown;
 }
 
-export async function sendChatMessage(message: string): Promise<HrChatResponse> {
+export async function sendChatMessage(message: string, language: string = "en"): Promise<HrChatResponse> {
   const res = await fetch(buildUrl("/api/hr/chat/"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, language }),
   });
 
   const data = (await readJsonSafeUnknown(res)) as HrChatResponse & HrApiError;
@@ -61,7 +61,8 @@ export async function sendChatMessage(message: string): Promise<HrChatResponse> 
   return { html_response: data.html_response };
 }
 
-export async function uploadCsv(formData: FormData): Promise<HrChatResponse> {
+export async function uploadCsv(formData: FormData, language: string = "en"): Promise<HrChatResponse> {
+  formData.append("language", language);
   const res = await fetch(buildUrl("/api/hr/upload/"), {
     method: "POST",
     body: formData,

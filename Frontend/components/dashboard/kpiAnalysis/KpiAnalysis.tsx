@@ -16,50 +16,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { sendChatMessage, uploadCsv } from "@/services/kpiService";
+import { uploadCsv, sendChatMessage } from "@/services/kpiService";
 import styles from "./kpiReportStyles.module.css";
-
-const analysisCards = [
-  {
-    id: "labor",
-    icon: Users,
-    title: "Labor Cost Analysis",
-    iconBg: "bg-green-500",
-    samplePrompt:
-      "Analyze my labor cost. Total sales: $50,000. Labor cost: $15,000. Hours worked: 800. Overtime hours: 40. Covers served: 2,000.",
-    features: [
-      "Labor cost percentage",
-      "Overtime tracking",
-      "Productivity metrics",
-    ],
-  },
-  {
-    id: "prime",
-    icon: BarChart3,
-    title: "Prime Cost Analysis",
-    iconBg: "bg-purple-500",
-    samplePrompt:
-      "Analyze my prime cost. Total sales: $50,000. Labor cost: $15,000. Food cost: $14,000. Covers served: 2,000.",
-    features: [
-      "Prime cost percentage",
-      "Target benchmarking",
-      "Trend analysis",
-    ],
-  },
-  {
-    id: "sales",
-    icon: TrendingUp,
-    title: "Sales Performance",
-    iconBg: "bg-cyan-500",
-    samplePrompt:
-      "Analyze my sales performance. Total sales: $50,000. Labor cost: $15,000. Food cost: $14,000. Hours worked: 800. Previous sales: $48,000. Covers served: 2,000. Average check: $25.",
-    features: [
-      "Sales per labor hour",
-      "Revenue trends",
-      "Growth analysis",
-    ],
-  },
-];
+import { useLanguage } from "@/providers/language-provider";
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton";
 
 type ChatMessage = {
   id: number;
@@ -79,6 +39,7 @@ function sanitizeKpiHtml(dirtyHtml: string): string {
 }
 
 export default function KPIAnalysis() {
+  const { language, t } = useLanguage();
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -87,6 +48,45 @@ export default function KPIAnalysis() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const analysisCards = [
+    {
+      id: "labor",
+      icon: Users,
+      title: t("laborCostAnalysis"),
+      iconBg: "bg-green-500",
+      samplePrompt: t("kpiLaborSample"),
+      features: [
+        t("laborCostPercentage"),
+        t("overtimeTracking"),
+        t("productivityMetrics"),
+      ],
+    },
+    {
+      id: "prime",
+      icon: BarChart3,
+      title: t("primeCostAnalysis"),
+      iconBg: "bg-purple-500",
+      samplePrompt: t("kpiPrimeSample"),
+      features: [
+        t("primeCostPercentage"),
+        t("targetBenchmarking"),
+        t("trendAnalysis"),
+      ],
+    },
+    {
+      id: "sales",
+      icon: TrendingUp,
+      title: t("salesPerformance"),
+      iconBg: "bg-cyan-500",
+      samplePrompt: t("kpiSalesSample"),
+      features: [
+        t("salesPerLaborHour"),
+        t("revenueTrends"),
+        t("growthAnalysis"),
+      ],
+    },
+  ];
 
   // Auto scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -107,7 +107,7 @@ export default function KPIAnalysis() {
     setInputValue("");
 
     try {
-      const { html_response } = await sendChatMessage(message);
+      const { html_response } = await sendChatMessage(message, language);
       setMessages((prev) => [...prev, { id: Date.now() + 1, type: "ai", html: html_response }]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
@@ -149,8 +149,8 @@ export default function KPIAnalysis() {
         type: "user",
         text:
           files.length === 1
-            ? `📎 Uploaded CSV: ${files[0].name}`
-            : `📎 Uploaded CSVs: ${files.map((f) => f.name).join(", ")}`,
+            ? `${t("uploadedCsv")} ${files[0].name}`
+            : `${t("uploadedCsvs")} ${files.map((f) => f.name).join(", ")}`,
       },
     ]);
 
@@ -159,7 +159,7 @@ export default function KPIAnalysis() {
       formData.append("required_csv", files[0]);
       if (files[1]) formData.append("optional_csv", files[1]);
 
-      const { html_response } = await uploadCsv(formData);
+      const { html_response } = await uploadCsv(formData, language);
       setMessages((prev) => [...prev, { id: Date.now() + 1, type: "ai", html: html_response }]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
@@ -187,19 +187,17 @@ export default function KPIAnalysis() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-4xl font-semibold text-center mb-4">
-              KPI Analysis
+              {t("kpiAnalysisTitle")}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
-              Analyze labor cost, prime cost, and sales performance with
-              <br />
-              AI-powered benchmarking and recommendations.
+            <p className="text-gray-500 dark:text-gray-400 text-lg whitespace-pre-line">
+              {t("kpiAnalysisSubtitle")}
             </p>
           </div>
 
           {/* Error banner */}
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
-              <strong>Error:</strong> {error}
+              <strong>{t("error")}:</strong> {error}
             </div>
           )}
 
@@ -290,14 +288,19 @@ export default function KPIAnalysis() {
                   )}
                 >
                   {message.type === "ai" && message.html ? (
-                    <div
-                      className={cn(
-                        styles.kpiHtml
+                    <div id={`report-${message.id}`} className="relative w-full">
+                      {(message.html.includes("class=\"report") || message.html.includes("class='report") || message.html.includes("report__header")) && (
+                        <DownloadPdfButton targetId={`report-${message.id}`} filename="kpi_analysis.pdf" />
                       )}
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeKpiHtml(message.html),
-                      }}
-                    />
+                      <div
+                        className={cn(
+                          styles.kpiHtml
+                        )}
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeKpiHtml(message.html),
+                        }}
+                      />
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.text}</p>
                   )}
@@ -355,7 +358,7 @@ export default function KPIAnalysis() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Enter: Total Sale, Labor Cost, Hours Worked (e.g., 10000, 3000, 120)"
+              placeholder={t("kpiInputPlaceholder")}
               disabled={isLoading}
               className="flex-1 resize-none overflow-hidden border-none text-black dark:text-white 
              placeholder:text-gray-500 
@@ -371,7 +374,7 @@ export default function KPIAnalysis() {
             </Button>
           </div>
           <p className="text-center text-xs text-gray-500 mt-2">
-            Press Enter to send, Shift + Enter for new line
+            {t("pressEnterToSend")}
           </p>
         </div>
       </div>

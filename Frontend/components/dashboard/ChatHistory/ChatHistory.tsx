@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useLanguage } from "@/providers/language-provider"
 
 import { Select,
   SelectContent,
@@ -79,6 +80,7 @@ const initialChatHistory: ChatHistoryItem[] = [
 ]
 
 export default function ChatHistory() {
+  const { t } = useLanguage()
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>(initialChatHistory)
   const [filterType, setFilterType] = useState<string>("all")
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -97,10 +99,10 @@ export default function ChatHistory() {
       {/* Header */}
       <div className="text-center space-y-2">
         <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Your Hospitality AI Assistant
+          {t("chatHistoryTitle")}
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-          Find Your All Chat history here
+          {t("chatHistorySubtitle")}
         </p>
       </div>
 
@@ -108,10 +110,10 @@ export default function ChatHistory() {
       <div className="flex justify-end">
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-[180px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-            <SelectValue placeholder="All types" />
+            <SelectValue placeholder={t("allTypes")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="all">{t("allTypes")}</SelectItem>
             <SelectItem value="KPI Analysis">KPI Analysis</SelectItem>
             <SelectItem value="Beverage Management">Beverage Management</SelectItem>
             <SelectItem value="Staffing Optimization">Staffing Optimization</SelectItem>
@@ -126,8 +128,8 @@ export default function ChatHistory() {
           <TableHeader>
             <TableRow className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 border-b border-gray-300 dark:border-gray-700">
               <TableHead className="text-gray-900 dark:text-gray-300 font-semibold w-16">#</TableHead>
-              <TableHead className="text-gray-900 dark:text-gray-300 font-semibold">Title & Description</TableHead>
-              <TableHead className="text-gray-900 dark:text-gray-300 font-semibold text-right">Date</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-300 font-semibold">{t("titleAndDescription")}</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-300 font-semibold text-right">{t("date")}</TableHead>
               <TableHead className="text-gray-900 dark:text-gray-300 font-semibold w-20"></TableHead>
             </TableRow>
           </TableHeader>
@@ -197,7 +199,7 @@ export default function ChatHistory() {
       {/* Empty State */}
       {filteredHistory.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500 dark:text-gray-400">No chat history found</p>
+          <p className="text-gray-500 dark:text-gray-400">{t("noChatHistory")}</p>
         </div>
       )}
 

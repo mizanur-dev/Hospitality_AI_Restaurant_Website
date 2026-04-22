@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, Menu } from "lucide-react"
 import { useSidebar } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation"
+import { useLanguage } from "@/providers/language-provider"
 
 export default function MobileHeader() {
   const { setOpen } = useSidebar()
   const router = useRouter()
   const pathname = usePathname()
+  const { t } = useLanguage()
 
   return (
     <div className="lg:hidden flex items-center justify-between gap-3 p-4 bg-gray-100 dark:bg-[#1E2939] border-b border-gray-200 dark:border-gray-800">
@@ -25,8 +27,8 @@ export default function MobileHeader() {
           <span className="text-white text-sm font-bold">H</span>
         </div>
         <div>
-          <div className="font-semibold text-sm">Hospitality AI</div>
-          <div className="text-xs text-green-500">AI Assistant Active</div>
+          <div className="font-semibold text-sm">{t("hospitalityAi")}</div>
+          <div className="text-xs text-green-500">{t("aiAssistantActive")}</div>
         </div>
       </div>
 
@@ -38,7 +40,7 @@ export default function MobileHeader() {
           className="ml-auto"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
-          Dashboard
+          {t("dashboard")}
         </Button>
       )}
     </div>

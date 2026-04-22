@@ -1,4 +1,4 @@
-﻿from django.http import JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -70,6 +70,7 @@ def chat_api(request):
             if not user_text and "messages" in body_obj:
                 user_text = _coerce_text(body_obj.get("messages"))
             context_val = body_obj.get("context", None)
+            lang_val = body_obj.get("language", "en")
         elif isinstance(body_obj, str):
             user_text = body_obj
         else:
@@ -77,13 +78,14 @@ def chat_api(request):
             try:
                 user_text = request.POST.get("message", "")
                 context_val = request.POST.get("context", None)
+                lang_val = request.POST.get("language", "en")
             except Exception:
                 user_text = ""
                 context_val = None
 
-        return (user_text or ""), context_val
+        return (user_text or ""), context_val, lang_val
 
-    user_input, context = _extract_message_and_context()
+    user_input, context, language = _extract_message_and_context()
     if not isinstance(user_input, str):
         user_input = str(user_input)
     if not user_input.strip():
@@ -96,7 +98,7 @@ def chat_api(request):
     if not isinstance(history, list):
         history = []
 
-    response = chat_with_gpt(user_input, context, history=history)
+    response = chat_with_gpt(user_input, context, history=history, language=language)
 
     if isinstance(user_input, str) and user_input.strip():
         history.append({"role": "user", "content": user_input.strip()})

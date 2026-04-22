@@ -383,7 +383,7 @@ export default function Profile() {
             <div className="flex items-center gap-3">
               <Paintbrush className="w-5 h-5 text-orange-600" />
               <h3 className="font-semibold text-gray-900 dark:text-white">
-                Aperance
+                Appearance
               </h3>
             </div>
             <ModeToggle/>

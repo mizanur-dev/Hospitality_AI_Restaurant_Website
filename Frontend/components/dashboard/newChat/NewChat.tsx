@@ -28,6 +28,7 @@ import {
   uploadCsv as uploadStrategicCsv,
 } from "@/services/strategicService";
 import styles from "@/components/dashboard/kpiAnalysis/kpiReportStyles.module.css";
+import { DownloadPdfButton } from "@/components/dashboard/DownloadPdfButton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,51 +45,10 @@ import {
   BotIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/translations";
 
-const mainCards = [
-  {
-    id: "kpi",
-    title: "KPI Analysis",
-    icon: BarChart3,
-    iconBg: "bg-purple-600",
-    route: "/dashboard/kpi-analysis",
-  },
-  {
-    id: "hr",
-    title: "HR Optimizations",
-    icon: Users,
-    iconBg: "bg-green-600",
-    route: "/dashboard/hr-optimization",
-  },
-  {
-    id: "beverage",
-    title: "Beverage Insights",
-    icon: Wine,
-    iconBg: "bg-red-600",
-    route: "/dashboard/beverage-insights",
-  },
-  {
-    id: "menu",
-    title: "Menu Engineering",
-    icon: ChefHat,
-    iconBg: "bg-pink-600",
-    route: "/dashboard/menu-engineering",
-  },
-  {
-    id: "recipe",
-    title: "Recipe Intelligence",
-    icon: Lightbulb,
-    iconBg: "bg-blue-600",
-    route: "/dashboard/recipe-intelligence",
-  },
-  {
-    id: "strategic",
-    title: "Strategic Planning",
-    icon: TrendingUp,
-    iconBg: "bg-cyan-600",
-    route: "/dashboard/strategic-planning",
-  },
-];
+// mainCards moved inside the component to use t()
 const CHAT_API_URL =
   process.env.NEXT_PUBLIC_CHAT_API_URL ??
   `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"}/chat/api/`;
@@ -229,12 +189,22 @@ interface Message {
 
 export default function NewChat() {
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const mainCards = [
+    { id: "kpi", titleKey: "kpiAnalysis" as TranslationKey, icon: BarChart3, iconBg: "bg-purple-600", route: "/dashboard/kpi-analysis" },
+    { id: "hr", titleKey: "hrOptimizations" as TranslationKey, icon: Users, iconBg: "bg-green-600", route: "/dashboard/hr-optimization" },
+    { id: "beverage", titleKey: "beverageInsights" as TranslationKey, icon: Wine, iconBg: "bg-red-600", route: "/dashboard/beverage-insights" },
+    { id: "menu", titleKey: "menuEngineering" as TranslationKey, icon: ChefHat, iconBg: "bg-pink-600", route: "/dashboard/menu-engineering" },
+    { id: "recipe", titleKey: "recipeIntelligence" as TranslationKey, icon: Lightbulb, iconBg: "bg-blue-600", route: "/dashboard/recipe-intelligence" },
+    { id: "strategic", titleKey: "strategicPlanning" as TranslationKey, icon: TrendingUp, iconBg: "bg-cyan-600", route: "/dashboard/strategic-planning" },
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -257,8 +227,8 @@ export default function NewChat() {
         type: "user",
         text:
           files.length === 1
-            ? `📎 Uploaded CSV: ${files[0].name}`
-            : `📎 Uploaded CSVs: ${files.map((f) => f.name).join(", ")}`,
+            ? `${t("uploadedCsv")} ${files[0].name}`
+            : `${t("uploadedCsvs")} ${files.map((f) => f.name).join(", ")}`,
       };
       setMessages((prev) => [...prev, userMessage]);
 
@@ -275,17 +245,17 @@ export default function NewChat() {
 
         let html_response: string;
         if (domain === "hr") {
-          ({ html_response } = await uploadHrCsv(formData));
+          ({ html_response } = await uploadHrCsv(formData, language));
         } else if (domain === "beverage") {
-          ({ html_response } = await uploadBeverageCsv(formData));
+          ({ html_response } = await uploadBeverageCsv(formData, language));
         } else if (domain === "menu") {
-          ({ html_response } = await uploadMenuCsv(formData));
+          ({ html_response } = await uploadMenuCsv(formData, language));
         } else if (domain === "recipe") {
-          ({ html_response } = await uploadRecipeCsv(formData));
+          ({ html_response } = await uploadRecipeCsv(formData, language));
         } else if (domain === "strategic") {
-          ({ html_response } = await uploadStrategicCsv(formData));
+          ({ html_response } = await uploadStrategicCsv(formData, language));
         } else {
-          ({ html_response } = await uploadKpiCsv(formData));
+          ({ html_response } = await uploadKpiCsv(formData, language));
         }
 
         setMessages((prev) => [...prev, { id: Date.now(), type: "ai", text: html_response }]);
@@ -295,14 +265,14 @@ export default function NewChat() {
           {
             id: Date.now(),
             type: "ai",
-            text: `❌ CSV Error: ${(err as Error).message}`,
+            text: `${t("csvError")} ${(err as Error).message}`,
           },
         ]);
       } finally {
         setIsLoading(false);
       }
     },
-    [isLoading]
+    [isLoading, language, t]
   );
 
   const sendChat = useCallback(
@@ -316,7 +286,7 @@ export default function NewChat() {
           const res = await fetch(CHAT_API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text, context: null }),
+            body: JSON.stringify({ message: text, context: null, language }),
           });
           if (!res.ok) throw new Error(`Server error: ${res.status}`);
           const data = await res.json();
@@ -328,17 +298,17 @@ export default function NewChat() {
         // Domain chat routes to the same analysis engines as the dedicated pages.
         let html_response: string;
         if (domain === "kpi") {
-          ({ html_response } = await sendKpiChatMessage(text));
+          ({ html_response } = await sendKpiChatMessage(text, language));
         } else if (domain === "hr") {
-          ({ html_response } = await sendHrChatMessage(text));
+          ({ html_response } = await sendHrChatMessage(text, language));
         } else if (domain === "beverage") {
-          ({ html_response } = await sendBeverageChatMessage(text));
+          ({ html_response } = await sendBeverageChatMessage(text, language));
         } else if (domain === "menu") {
-          ({ html_response } = await sendMenuChatMessage(text));
+          ({ html_response } = await sendMenuChatMessage(text, language));
         } else if (domain === "recipe") {
-          ({ html_response } = await sendRecipeChatMessage(text));
+          ({ html_response } = await sendRecipeChatMessage(text, language));
         } else {
-          ({ html_response } = await sendStrategicChatMessage(text));
+          ({ html_response } = await sendStrategicChatMessage(text, language));
         }
         setMessages((prev) => [...prev, { id: Date.now(), type: "ai", text: html_response }]);
       } catch {
@@ -347,14 +317,14 @@ export default function NewChat() {
           {
             id: Date.now(),
             type: "ai",
-            text: "Sorry, I was unable to reach the server. Please make sure the backend is running and try again.",
+            text: t("serverError"),
           },
         ]);
       } finally {
         setIsLoading(false);
       }
     },
-    []
+    [language]
   );
 
   const handleSendMessage = () => {
@@ -388,12 +358,10 @@ export default function NewChat() {
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12">
             <h1 className="bg-gradient-to-r from-[#C27AFF] via-[#51A2FF] to-[#C27AFF] bg-clip-text text-transparent text-3xl sm:text-4xl lg:text-5xl font-semibold mb-3 sm:mb-4">
-              Your Hospitality AI Assistant
+              {t("yourHospitalityAiAssistant")}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base lg:text-lg px-4">
-              Ask anything about restaurant KPIs, staffing, purchasing, menu
-              <br className="hidden sm:block" />
-              engineering, beverage management, or financial strategy.
+            <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base lg:text-lg px-4 whitespace-pre-line">
+              {t("newChatSubtitle")}
             </p>
           </div>
 
@@ -421,7 +389,7 @@ export default function NewChat() {
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <h3 className="text-lg font-semibold text-black dark:text-white">
-                      {card.title}
+                      {t(card.titleKey)}
                     </h3>
                   </div>
                 </Card>
@@ -447,30 +415,35 @@ export default function NewChat() {
                     </div>
                   )}
 
-                  <div
-                    className={cn(
-                      "max-w-3xl rounded-2xl px-6 py-4",
-                      message.type === "user"
-                        ? "bg-gradient-to-br from-[#9810FA] to-[#155DFC] text-white"
-                        : "bg-gray-100 dark:bg-[#1E2939] text-gray-900 dark:text-white",
-                      message.type === "ai" && styles.kpiHtml
+                  <div id={`report-${message.id}`} className="relative w-full max-w-3xl">
+                    {message.type === "ai" && (message.text.includes("class=\"report") || message.text.includes("class='report") || message.text.includes("report__header")) && (
+                      <DownloadPdfButton targetId={`report-${message.id}`} filename="ai_analysis.pdf" />
                     )}
-                    {...(message.type === "ai"
-                      ? {
-                          dangerouslySetInnerHTML: {
-                            __html:
-                              typeof window !== "undefined"
-                                ? DOMPurify.sanitize(message.text, {
-                                    USE_PROFILES: { html: true },
-                                    ADD_TAGS: ["style"],
-                                    ADD_ATTR: ["style", "class"],
-                                    FORBID_TAGS: ["script", "iframe", "object", "embed"],
-                                  })
-                                : message.text,
-                          },
-                        }
-                      : { children: <p className="whitespace-pre-wrap">{message.text}</p> })}
-                  />
+                    <div
+                      className={cn(
+                        "rounded-2xl px-6 py-4",
+                        message.type === "user"
+                          ? "bg-gradient-to-br from-[#9810FA] to-[#155DFC] text-white"
+                          : "bg-gray-100 dark:bg-[#1E2939] text-gray-900 dark:text-white",
+                        message.type === "ai" && styles.kpiHtml
+                      )}
+                      {...(message.type === "ai"
+                        ? {
+                            dangerouslySetInnerHTML: {
+                              __html:
+                                typeof window !== "undefined"
+                                  ? DOMPurify.sanitize(message.text, {
+                                      USE_PROFILES: { html: true },
+                                      ADD_TAGS: ["style"],
+                                      ADD_ATTR: ["style", "class"],
+                                      FORBID_TAGS: ["script", "iframe", "object", "embed"],
+                                    })
+                                  : message.text,
+                            },
+                          }
+                        : { children: <p className="whitespace-pre-wrap">{message.text}</p> })}
+                    />
+                  </div>
 
                   {message.type === "user" && (
                     <div className="w-10 h-10 rounded-lg bg-gray-600 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
@@ -525,7 +498,7 @@ export default function NewChat() {
               size="icon"
               disabled={isLoading}
               onClick={() => fileInputRef.current?.click()}
-              title="Upload a CSV file for KPI analysis"
+              title={t("uploadCsvForKpi")}
               className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
             >
               <Paperclip className="w-5 h-5" />
@@ -535,7 +508,7 @@ export default function NewChat() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               disabled={isLoading}
-              placeholder="Ask me anything about your restaurant KPIs, staffing, food cost, beverage cost, or business strategy..."
+              placeholder={t("newChatInputPlaceholder")}
               className="flex-1 resize-none overflow-hidden min-h-[20px] max-h-32 bg-transparent border-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
               rows={1}
             />
@@ -549,7 +522,7 @@ export default function NewChat() {
             </Button>
           </div>
           <p className="text-center text-xs text-gray-500 dark:text-gray-500 mt-2">
-            Press Enter to send, Shift + Enter for new line &nbsp;·&nbsp; 📎 Attach a CSV file for KPI analysis
+            {t("newChatFooterHint")}
           </p>
         </div>
       </div>
