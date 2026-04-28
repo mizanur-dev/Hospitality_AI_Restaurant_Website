@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node scripts/run-next.cjs dev",
+    "build": "node scripts/run-next.cjs build",
+    "start": "node scripts/run-next.cjs start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -31,6 +31,7 @@
     "motion": "^12.23.26",
     "next": "16.0.8",
     "next-themes": "^0.4.6",
+    "playwright-core": "^1.59.1",
     "postcss": "^8.5.6",
     "react": "19.2.1",
     "react-dom": "19.2.1",
@@ -45,7 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "baseline-browser-mapping": "^2.10.20",
+    "baseline-browser-mapping": "^2.10.24",
     "eslint": "^9",
     "eslint-config-next": "16.0.8",
     "tailwindcss": "^4.1.17",

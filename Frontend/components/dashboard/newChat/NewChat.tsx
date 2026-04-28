@@ -259,13 +259,13 @@ export default function NewChat() {
         }
 
         setMessages((prev) => [...prev, { id: Date.now(), type: "ai", text: html_response }]);
-      } catch {
+      } catch (error) {
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now(),
             type: "ai",
-            text: `${t("csvError")} ${(err as Error).message}`,
+            text: `${t("csvError")} ${error instanceof Error ? error.message : ""}`,
           },
         ]);
       } finally {

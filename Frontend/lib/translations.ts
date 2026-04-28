@@ -208,11 +208,8 @@ Example: "Run comprehensive analysis. Total sales: $50,000. Labor cost: $15,000.
 
     // Chat History Page
     findYourChatHistory: "Find Your All Chat history here",
-    allTypes: "All types",
     beverageManagement: "Beverage Management",
     staffingOptimization: "Staffing Optimization",
-    titleAndDescription: "Title & Description",
-    date: "Date",
     noChatHistoryFound: "No chat history found",
     deleteChatHistory: "Delete Chat History",
     deleteChatConfirm:
@@ -474,11 +471,8 @@ Ejemplo: "Run comprehensive analysis. Total sales: $50,000. Labor cost: $15,000.
 
     // Chat History Page
     findYourChatHistory: "Encuentre todo su historial de chat aquí",
-    allTypes: "Todos los tipos",
     beverageManagement: "Gestión de Bebidas",
     staffingOptimization: "Optimización de Personal",
-    titleAndDescription: "Título y Descripción",
-    date: "Fecha",
     noChatHistoryFound: "No se encontró historial de chat",
     deleteChatHistory: "Eliminar Historial de Chat",
     deleteChatConfirm:

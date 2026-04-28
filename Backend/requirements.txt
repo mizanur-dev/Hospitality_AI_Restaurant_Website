@@ -8,7 +8,6 @@ openai>=1.0.0
 pandas>=2.0.0
 python-dotenv>=1.0.0
 
-# Testing and code quality tools
 coverage>=7.0.0
 pre-commit>=3.8
 black>=24.8

@@ -653,10 +653,12 @@ class KpiUploadAPIView(APIView):
 
         required_csv = serializer.validated_data["required_csv"]
         optional_csv = serializer.validated_data.get("optional_csv")
+        language: str = request.data.get("language", "en")
 
         try:
             import io as _io
             from backend.consulting_services.kpi.kpi_utils import process_kpi_csv_data
+            from apps.chat_assistant.translation_utils import translate_html_response
 
             raw_bytes = required_csv.read()
 
@@ -691,8 +693,12 @@ class KpiUploadAPIView(APIView):
                 )
 
             combined_html_parts.append("</div>")
+            final_html = "\n".join(combined_html_parts)
+            if language and language != "en":
+                final_html = translate_html_response(final_html, language)
+
             return Response(
-                {"html_response": "\n".join(combined_html_parts)},
+                {"html_response": final_html},
                 status=status.HTTP_200_OK,
             )
         except Exception as exc:
