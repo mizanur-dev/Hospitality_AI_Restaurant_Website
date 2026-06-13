@@ -1,0 +1,21 @@
+Django
+djangorestframework
+django-environ
+dj-database-url
+requests
+django-cors-headers
+openai
+pandas
+python-dotenv
+
+coverage
+pre-commit
+black
+isort
+flake8
+
+# The below three packages should download by npm install html2pdf.js jspdf html2canvas 
+
+# html2pdf.js
+# jspdf
+# html2canvas
