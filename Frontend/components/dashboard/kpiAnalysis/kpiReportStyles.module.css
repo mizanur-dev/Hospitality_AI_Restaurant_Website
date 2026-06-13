@@ -260,8 +260,7 @@
   font-weight: 600;
   color: #0f172a;
   margin: 20px 0 10px;
-  border-bottom: 3px solid transparent;
-  border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
+  border-bottom: 3px solid #667eea;
   padding-bottom: 8px;
 }
 
