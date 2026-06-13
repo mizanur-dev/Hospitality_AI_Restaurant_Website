@@ -1,0 +1,220 @@
+/*
+ * pdf-print.css
+ * Centralized print / PDF stylesheet for Hospitality AI Dashboard.
+ * Applied by Playwright during server-side PDF rendering via the
+ * print media query.  Also safe to import globally – it is scoped
+ * entirely to @media print so it never affects the live UI.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   @page — A4 sizing with consistent margins
+   ───────────────────────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    /* 15 mm top/bottom, 12 mm left/right ≈ ~760 px usable width at 96 dpi */
+    margin: 15mm 12mm;
+  }
+
+  /* ── Reset & base ── */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-sizing: border-box;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    /* Prevent browser from adding extra white-space at the end */
+    height: auto !important;
+    overflow: visible !important;
+    /* Widow / orphan control – never leave a lone line stranded on a page */
+    widows: 2;
+    orphans: 2;
+  }
+
+  /* ─── Universal page-break helpers ─── */
+
+  /*
+   * Prevent any element with this class from being split across pages.
+   * Apply it to: cards, chart wrappers, metric boxes, table rows/groups.
+   */
+  .pdf-avoid-break,
+  .avoid-page-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Force a new page before elements with this class */
+  .pdf-page-break-before {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  /* Force a new page after elements with this class */
+  .pdf-page-break-after {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  /* ─── Dashboard cards & metric containers ─── */
+  /* Tailwind class patterns used in the codebase */
+  [class*="rounded-2xl"],
+  [class*="rounded-xl"],
+  [class*="card"],
+  .Card,
+  .card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ─── Report sections (AI-generated HTML) ─── */
+  .report__header,
+  .kpi-card,
+  .kpi-grid,
+  .tracking-card,
+  .tracking-grid,
+  .tracking-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body .report,
+  body .report__body {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Section headings should stay with the content that follows */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* ─── Charts ─── */
+  /* Recharts / ChartContainer wrappers */
+  [class*="ChartContainer"],
+  [class*="recharts-wrapper"],
+  .recharts-responsive-container,
+  canvas,
+  img[data-pdf-chart] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ─── Tables ─── */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  /* Repeat header row on every new page (Playwright / Chromium supports this) */
+  thead {
+    display: table-header-group !important;
+  }
+
+  /* Keep table footers on the same page as last content row */
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  /* Never split a single table row across pages */
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  th,
+  td {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ─── Grid & flex containers ─── */
+  /* Metric card rows */
+  [class*="grid-cols"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ─── Hide interactive / browser-only elements ─── */
+  [data-pdf-export-ignore="true"],
+  [data-html2canvas-ignore="true"],
+  button,
+  input[type="file"],
+  textarea,
+  .sticky,
+  [class*="sticky"] {
+    display: none !important;
+  }
+
+  /* ─── A4-width layout ─── */
+  /*
+   * When Playwright renders at 800 px viewport the responsive CSS already
+   * adapts, but we additionally clamp every container to the printable width
+   * so nothing overflows the page margin.
+   */
+  .pdf-export-shell {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .pdf-export-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Prevent horizontal overflow */
+  main,
+  [class*="max-w"] {
+    max-width: 100% !important;
+  }
+
+  /* ─── Color preservation ─── */
+  /* Gradients must be rendered exactly */
+  [class*="bg-gradient"],
+  [class*="from-"],
+  [class*="via-"],
+  [class*="to-"],
+  [style*="background"],
+  [style*="gradient"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ─── Typography ─── */
+  body {
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Prevent text overflow in small cells */
+  td,
+  th {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* ─── Animations & transitions (disable in print) ─── */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -170,7 +170,7 @@ function MetricCard({
 }) {
   const s = VARIANT_STYLES[variant];
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-indigo-100/40">
+    <div className="pdf-avoid-break group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-indigo-100/40">
       <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${s.bar}`} />
       <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.05),transparent_65%)]" />
       <p className="relative z-10 text-[0.7rem] font-semibold uppercase tracking-widest text-slate-400">
@@ -208,7 +208,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:shadow-indigo-100/30">
+    <div className="pdf-avoid-break rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:shadow-indigo-100/30">
       <div className="mb-5 flex items-center gap-3">
         <span className="h-5 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500" />
         <h3 className="text-base font-bold text-slate-800">{title}</h3>
@@ -460,7 +460,7 @@ export default function KPIDashboard() {
         </div> */}
 
         {/* ── Metric Cards ── */}
-        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="pdf-avoid-break mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label={t("revenue")}
             value={metrics.revenue}
@@ -492,7 +492,7 @@ export default function KPIDashboard() {
         </div>
 
         {/* ── Charts Row 1 ── */}
-        <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="pdf-avoid-break mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {/* Revenue Trend — ChartContainer + ChartTooltip */}
           <ChartCard title={t("revenueTrend")}>
             <ChartContainer config={revenueConfig} className="h-56 w-full">
@@ -578,7 +578,7 @@ export default function KPIDashboard() {
         </div>
 
         {/* ── Charts Row 2 ── */}
-        <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="pdf-avoid-break mb-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {/* Weekly Performance — ChartContainer + ChartTooltip */}
           <ChartCard title={t("weeklyPerformance")}>
             <ChartContainer config={weeklyConfig} className="h-56 w-full">
@@ -657,7 +657,7 @@ export default function KPIDashboard() {
         </div>
 
         {/* ── Chat Section ── */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm">
+        <div className="pdf-avoid-break overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm">
           {/* header */}
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
             <div className="flex items-center gap-3">

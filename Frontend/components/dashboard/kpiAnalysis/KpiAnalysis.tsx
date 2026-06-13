@@ -202,7 +202,7 @@ export default function KPIAnalysis() {
           )}
 
           {/* Analysis Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="pdf-avoid-break grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {analysisCards.map((card) => {
               const Icon = card.icon;
               const isSelected = selectedCard === card.id;
